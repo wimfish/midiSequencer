@@ -816,7 +816,7 @@ body.theme-80s .step:nth-child(4n+1):not(.on) { background: linear-gradient(180d
 
 /* Active-track dimming */
 body.theme-80s .tracks.has-active-track .track:not(.active):not(.is-active) {
-  opacity: .52 !important;
+  opacity: .72 !important;
   filter: saturate(.74) brightness(.84) !important;
 }
 
