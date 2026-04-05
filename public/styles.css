@@ -302,6 +302,26 @@ select option { color: #111; background: #f1ece4; }
 .step.on.current { box-shadow: 0 0 0 1px rgba(255,209,102,.18), 0 0 18px rgba(255,209,102,.30), 0 0 12px rgba(86,211,255,.16); }
 .step:focus { outline: 2px solid #fff; }
 
+.step.selected {
+  outline: 2px solid rgba(255,255,255,.95);
+  outline-offset: 2px;
+  border-color: rgba(255,255,255,.88);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.10),
+    0 0 14px rgba(255,255,255,.12);
+}
+
+.step.on.selected {
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.14),
+    0 0 14px rgba(255,255,255,.14),
+    0 0 12px rgba(86,211,255,.18);
+}
+
+.step.current.selected {
+  outline-color: #fff;
+}
+
 @keyframes stepPulse {
   0%, 100% { filter: brightness(1); }
   50%       { filter: brightness(1.08); }

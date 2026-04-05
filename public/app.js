@@ -221,6 +221,7 @@ function createTrackFromTemplate(template, index) {
     swing: 0,
     accent: 100,
     settingsOpen: false,
+    cursorStep: 0,
     steps: Array.from({ length: state.length }, () => false)
   };
 }
@@ -278,6 +279,7 @@ function removeTrack(announce = true) {
 function regenerateTrackLengths() {
   state.tracks.forEach(track => {
     track.steps = Array.from({ length: state.length }, (_, i) => track.steps[i] || false);
+    track.cursorStep = clamp(track.cursorStep ?? 0, 0, state.length - 1);
   });
   if (state.currentStep >= state.length) state.currentStep = 0;
 }
@@ -393,26 +395,37 @@ function render() {
     preview.className = `track-preview grid-shell inline-grid-shell${isActive ? ' active-electra' : ''}${isActive && state.isPlaying ? ' playing-electra' : ''}`;
     const previewGrid = document.createElement('div');
     previewGrid.className = 'step-grid preview-grid';
-    track.steps.forEach((isOn, stepIndex) => {
-      const step = document.createElement('button');
-      step.type = 'button';
-      step.className = `step${isOn ? ' on' : ''}${state.currentStep === stepIndex && state.isPlaying ? ' current' : ''}`;
-      step.textContent = stepIndex + 1;
-      step.dataset.trackIndex = trackIndex;
-      step.dataset.stepIndex = stepIndex;
-      step.tabIndex = 0;
-      step.addEventListener('click', () => toggleStep(trackIndex, stepIndex));
-      step.addEventListener('pointerdown', () => {
-        setActiveTrack(trackIndex, false);
-        state.drawMode = !track.steps[stepIndex];
-        setStep(trackIndex, stepIndex, state.drawMode);
-      });
-      step.addEventListener('pointerenter', (ev) => {
-        if (ev.buttons !== 1 || state.drawMode === null) return;
-        setStep(trackIndex, stepIndex, state.drawMode);
-      });
-      previewGrid.appendChild(step);
-    });
+	track.steps.forEach((isOn, stepIndex) => {
+		const step = document.createElement('button');
+		step.type = 'button';
+		const isCursor =
+		  isActive &&
+		  ensureTrackCursor(trackIndex) === stepIndex;
+		step.className =
+		  `step${isOn ? ' on' : ''}${state.currentStep === stepIndex && state.isPlaying ? ' current' : ''}${isCursor ? ' selected' : ''}`;
+		step.textContent = stepIndex + 1;
+		step.dataset.trackIndex = trackIndex;
+		step.dataset.stepIndex = stepIndex;
+		step.tabIndex = 0;
+		step.addEventListener('click', () => {
+		  setActiveTrack(trackIndex, false);
+		  track.cursorStep = stepIndex;
+		  toggleStep(trackIndex, stepIndex);
+		});
+		step.addEventListener('pointerdown', () => {
+		  setActiveTrack(trackIndex, false);
+		  track.cursorStep = stepIndex;
+		  state.drawMode = !track.steps[stepIndex];
+		  setStep(trackIndex, stepIndex, state.drawMode);
+		});
+		step.addEventListener('pointerenter', (ev) => {
+		  if (ev.buttons !== 1 || state.drawMode === null) return;
+		  track.cursorStep = stepIndex;
+		  setStep(trackIndex, stepIndex, state.drawMode);
+		});
+		previewGrid.appendChild(step);
+	});
+	  
     preview.appendChild(previewGrid);
 
     const actions = document.createElement('div');
@@ -499,9 +512,11 @@ function updatePlaybackVisuals() {
       preview.classList.toggle('active-electra', isActive);
       preview.classList.toggle('playing-electra', isActive && state.isPlaying);
     }
+    const selectedStep = ensureTrackCursor(trackIndex);
     const steps = wrap.querySelectorAll('.step');
     steps.forEach((stepEl, stepIndex) => {
       stepEl.classList.toggle('current', state.isPlaying && stepIndex === state.currentStep);
+      stepEl.classList.toggle('selected', isActive && stepIndex === selectedStep);
     });
   });
 }
@@ -522,11 +537,44 @@ function renderSettingRow(track, prop) {
     </label>
   `;
 }
+	
+function ensureTrackCursor(trackIndex) {
+  const track = state.tracks[trackIndex];
+  if (!track) return 0;
+  if (typeof track.cursorStep !== 'number' || Number.isNaN(track.cursorStep)) {
+    track.cursorStep = 0;
+  }
+  track.cursorStep = clamp(track.cursorStep, 0, state.length - 1);
+  return track.cursorStep;
+}
+
+function moveActiveStep(delta) {
+  const track = state.tracks[state.activeTrack];
+  if (!track) return;
+  const current = ensureTrackCursor(state.activeTrack);
+  track.cursorStep = (current + delta + state.length) % state.length;
+  render();
+  setStatus(`${track.name} step ${track.cursorStep + 1}`);
+}
+
+function toggleSelectedStep() {
+  const track = state.tracks[state.activeTrack];
+  if (!track) return;
+  const stepIndex = ensureTrackCursor(state.activeTrack);
+  const nextValue = !track.steps[stepIndex];
+  track.steps[stepIndex] = nextValue;
+  render();
+  setStatus(`${track.name} step ${stepIndex + 1} ${nextValue ? 'aan' : 'uit'}`);
+}	
 
 function setActiveTrack(index, announce = true) {
   state.activeTrack = index;
+  ensureTrackCursor(index);
   render();
-  if (announce) setStatus(`Track ${index + 1} actief: ${state.tracks[index].name}`);
+  if (announce) {
+    const track = state.tracks[index];
+    setStatus(`Track ${index + 1} actief: ${track.name} · step ${track.cursorStep + 1}`);
+  }
 }
 
 function toggleMute(index) {
@@ -579,14 +627,16 @@ function toggleStep(trackIndex, stepIndex) {
 }
 
 function setStep(trackIndex, stepIndex, value) {
-  state.tracks[trackIndex].steps[stepIndex] = value;
+  const track = state.tracks[trackIndex];
+  if (!track) return;
+  track.steps[stepIndex] = value;
+  track.cursorStep = clamp(stepIndex, 0, state.length - 1);
   render();
 }
 
 function onKeydown(e) {
   const tag = document.activeElement?.tagName;
   const isTyping = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
-
   if (e.code === 'Space' && !isTyping) {
     e.preventDefault();
     togglePlay();
@@ -594,10 +644,28 @@ function onKeydown(e) {
   }
   if (isTyping) return;
 
-  const activeSettingsOpen = state.tracks[state.activeTrack]?.settingsOpen;
+  const activeTrack = state.tracks[state.activeTrack];
+  const activeSettingsOpen = activeTrack?.settingsOpen;
+
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    moveActiveStep(-1);
+    return;
+  }
+
+  if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    moveActiveStep(1);
+    return;
+  }
+
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    toggleSelectedStep();
+    return;
+  }
   const lower = e.key.toLowerCase();
   const num = Number(e.key);
-
   if (num >= 1 && num <= state.tracks.length) { setActiveTrack(num - 1); return; }
   if (e.shiftKey && lower === 'm') { state.tracks.forEach(t => t.mute = false); render(); setStatus('Alle mutes uit'); return; }
   if (e.shiftKey && lower === 's') { state.tracks.forEach(t => t.solo = false); render(); setStatus('Alle solo uit'); return; }
@@ -785,8 +853,7 @@ function savePattern() {
     volca: state.volca,
     activeSetting: state.activeSetting,
     visibleTrackCount: state.tracks.length,
-    tracks: state.tracks.map(({ name, midiNote, freq, mute, solo, probability, swing, accent, steps, settingsOpen }) =>
-      ({ name, midiNote, freq, mute, solo, probability, swing, accent, steps, settingsOpen }))
+    tracks: state.tracks.map(({ name, midiNote, freq, mute, solo, probability, swing, accent, steps, settingsOpen, cursorStep }) =>({ name, midiNote, freq, mute, solo, probability, swing, accent, steps, settingsOpen, cursorStep }))
   };
   localStorage.setItem('volca-sequencer-save', JSON.stringify(payload));
   setStatus('Pattern opgeslagen');
@@ -810,7 +877,12 @@ function loadPattern() {
     const wantedCount = clamp(data.visibleTrackCount || data.tracks.length || state.tracks.length, 1, state.maxTracks || state.tracks.length);
     while (state.tracks.length < wantedCount) addTrack(false);
     while (state.tracks.length > wantedCount) removeTrack(false);
-    state.tracks = data.tracks.slice(0, state.tracks.length).map((track, idx) => ({ ...state.tracks[idx], ...track, id: crypto.randomUUID() }));
+    state.tracks = data.tracks.slice(0, state.tracks.length).map((track, idx) => ({
+  	...state.tracks[idx],
+  	...track,
+  	cursorStep: clamp(track.cursorStep ?? 0, 0, state.length - 1),
+  	id: crypto.randomUUID()
+	}));
     els.bpmInput.value = state.bpm;
     render();
     setStatus('Pattern geladen');
