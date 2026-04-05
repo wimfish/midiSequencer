@@ -1,0 +1,13 @@
+{
+  "name": "volca-style-sequencer",
+  "version": "7.4.0",
+  "private": true,
+  "description": "Mobile-friendly Volca step sequencer with MIDI and keyboard control",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.22.1"
+  }
+}

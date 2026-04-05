@@ -1,0 +1,826 @@
+const styleDefaults = {
+  'Drum & Bass': { bpm: 174, kick: [0,8], snare:[4,12], hihat:'offbeat', ghost:[7,15] },
+  'Jungle': { bpm: 165, kick:[0,7,10], snare:[4,12], hihat:'busy', ghost:[3,11,14] },
+  'Dubstep': { bpm: 140, kick:[0,10], snare:[4,12], hihat:'half', ghost:[14] },
+  'Tekno': { bpm: 145, kick:'four', snare:[4,12], hihat:'straight', ghost:[10] },
+  'Psytrance': { bpm: 145, kick:'four', snare:[4,12], hihat:'offbeat', ghost:[6,14] },
+  'Rock': { bpm: 118, kick:[0,8], snare:[4,12], hihat:'straight', ghost:[10] },
+  'House': { bpm: 124, kick:'four', snare:[4,12], hihat:'offbeat', ghost:[14] },
+  'Hip-hop': { bpm: 92, kick:[0,10], snare:[4,12], hihat:'lazy', ghost:[14] },
+  'EBM': { bpm: 128, kick:'four', snare:[4,12], hihat:'straight', ghost:[8] },
+  'Ambient': { bpm: 78, kick:[0], snare:[8], hihat:'sparse', ghost:[14] },
+  'Arabisch': { bpm: 108, kick:[0,6,10], snare:[4,12], hihat:'sparse', ghost:[15] },
+  'EDM': { bpm: 128, kick:'four', snare:[4,12], hihat:'offbeat', ghost:[14] }
+};
+
+const volcaProfiles = {
+  beats: {
+    name: 'Volca Beats',
+    channel: 1,
+    initialVisible: 4,
+    maxTracks: 6,
+    tracks: [
+      { name: 'Kick', midiNote: 36, freq: 80 },
+      { name: 'Snare', midiNote: 38, freq: 190 },
+      { name: 'Hi-hat', midiNote: 42, freq: 4200 },
+      { name: 'Ghost/Tom', midiNote: 43, freq: 150 },
+      { name: 'Clap', midiNote: 39, freq: 2400 },
+      { name: 'Open Hat', midiNote: 46, freq: 5200 }
+    ]
+  },
+  sample: {
+    name: 'Volca Sample',
+    channel: 1,
+    initialVisible: 6,
+    maxTracks: 10,
+    tracks: [
+      { name: 'Sample 1', midiNote: 36, freq: 80 },
+      { name: 'Sample 2', midiNote: 37, freq: 100 },
+      { name: 'Sample 3', midiNote: 38, freq: 190 },
+      { name: 'Sample 4', midiNote: 39, freq: 230 },
+      { name: 'Sample 5', midiNote: 40, freq: 4200 },
+      { name: 'Sample 6', midiNote: 41, freq: 3200 },
+      { name: 'Sample 7', midiNote: 42, freq: 150 },
+      { name: 'Sample 8', midiNote: 43, freq: 180 },
+      { name: 'Sample 9', midiNote: 44, freq: 520 },
+      { name: 'Sample 10', midiNote: 45, freq: 900 }
+    ]
+  },
+  drum: {
+    name: 'Volca Drum',
+    channel: 1,
+    initialVisible: 6,
+    maxTracks: 10,
+    tracks: [
+      { name: 'Part 1', midiNote: 60, freq: 100 },
+      { name: 'Part 2', midiNote: 62, freq: 130 },
+      { name: 'Part 3', midiNote: 64, freq: 180 },
+      { name: 'Part 4', midiNote: 65, freq: 240 },
+      { name: 'Part 5', midiNote: 67, freq: 3600 },
+      { name: 'Part 6', midiNote: 69, freq: 4200 },
+      { name: 'Part 7', midiNote: 71, freq: 300 },
+      { name: 'Part 8', midiNote: 72, freq: 540 },
+      { name: 'Part 9', midiNote: 74, freq: 760 },
+      { name: 'Part 10', midiNote: 76, freq: 980 }
+    ]
+  }
+};
+
+const state = {
+  style: 'Drum & Bass',
+  variation: 'default',
+  length: 16,
+  bpm: 174,
+  volca: 'beats',
+  currentStep: 0,
+  activeTrack: 0,
+  activeSetting: 'probability',
+  isPlaying: false,
+  nextStepTime: 0,
+  timerId: null,
+  drawMode: null,
+  midiAccess: null,
+  midiOutputId: '',
+  midiEnabled: false,
+  midiClockEnabled: true,
+  lastClockTick: 0,
+  tracks: [],
+  trackTemplates: [],
+  maxTracks: 0
+};
+
+const settingMeta = {
+  probability: { label: 'Probability', short: 'P', min: 0, max: 100, step: 5, suffix: '%' },
+  swing: { label: 'Swing', short: 'S', min: 0, max: 75, step: 5, suffix: '%' },
+  accent: { label: 'Accent', short: 'A', min: 20, max: 127, step: 5, suffix: '' }
+};
+
+const els = {};
+let audioCtx;
+
+function qs(id) { return document.getElementById(id); }
+
+function init() {
+  bindEls();
+  populateStyles();
+  populateChannels();
+  bindEvents();
+  toggleSettingsPanel(true);
+  setupAudio();
+  setupMidi();
+  applyVolcaProfile(true);
+  generatePattern();
+  render();
+}
+
+function bindEls() {
+  ['styleSelect','variationSelect','lengthSelect','volcaSelect','bpmInput','generateBtn','clearBtn','playBtn','saveBtn','loadBtn','addTrackBtn','removeTrackBtn','trackCountText','trackHelpText','tracksContainer','statusText','midiEnable','midiOutputSelect','midiChannelSelect','clockEnable','midiHint','settingsToggleBtn','controlStack','advancedPanel'].forEach(id => els[id] = qs(id));
+}
+
+function populateStyles() {
+  Object.keys(styleDefaults).forEach(style => {
+    const opt = document.createElement('option');
+    opt.value = style;
+    opt.textContent = style;
+    els.styleSelect.appendChild(opt);
+  });
+  els.styleSelect.value = state.style;
+}
+
+function populateChannels() {
+  for (let i = 1; i <= 16; i++) {
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = String(i);
+    els.midiChannelSelect.appendChild(opt);
+  }
+  els.midiChannelSelect.value = '1';
+}
+
+function bindEvents() {
+  els.styleSelect.addEventListener('change', () => {
+    state.style = els.styleSelect.value;
+    state.bpm = styleDefaults[state.style].bpm;
+    els.bpmInput.value = state.bpm;
+    generatePattern();
+  });
+  els.variationSelect.addEventListener('change', () => { state.variation = els.variationSelect.value; generatePattern(); });
+  els.lengthSelect.addEventListener('change', () => { state.length = Number(els.lengthSelect.value); regenerateTrackLengths(); render(); });
+  els.volcaSelect.addEventListener('change', () => applyVolcaProfile(true));
+  els.bpmInput.addEventListener('input', () => {
+    state.bpm = clamp(Number(els.bpmInput.value) || 120, 40, 240);
+    els.bpmInput.value = state.bpm;
+    setStatus(`BPM ${state.bpm}`);
+  });
+  els.generateBtn.addEventListener('click', generatePattern);
+  els.clearBtn.addEventListener('click', clearPattern);
+  els.playBtn.addEventListener('click', togglePlay);
+  els.saveBtn.addEventListener('click', savePattern);
+  els.loadBtn.addEventListener('click', loadPattern);
+  els.addTrackBtn.addEventListener('click', () => addTrack());
+  els.removeTrackBtn.addEventListener('click', () => removeTrack());
+  els.midiEnable.addEventListener('change', () => { state.midiEnabled = els.midiEnable.checked; setStatus(state.midiEnabled ? 'MIDI aan' : 'MIDI uit'); });
+  els.midiOutputSelect.addEventListener('change', () => { state.midiOutputId = els.midiOutputSelect.value; setStatus(`MIDI output: ${els.midiOutputSelect.selectedOptions[0]?.textContent || 'geen'}`); });
+  els.midiChannelSelect.addEventListener('change', () => setStatus(`Kanaal ${els.midiChannelSelect.value}`));
+  els.clockEnable.addEventListener('change', () => { state.midiClockEnabled = els.clockEnable.checked; });
+  els.settingsToggleBtn.addEventListener('click', toggleSettingsPanel);
+
+  document.addEventListener('keydown', onKeydown);
+}
+
+function toggleSettingsPanel(forceOpen) {
+  const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : els.controlStack.classList.contains('compact');
+  els.controlStack.classList.toggle('compact', !shouldOpen);
+  els.settingsToggleBtn.setAttribute('aria-expanded', String(shouldOpen));
+  els.settingsToggleBtn.textContent = shouldOpen ? '▲ Instellingen omhoog' : '▼ Instellingen omlaag';
+}
+
+function setupAudio() {
+  window.AudioContext = window.AudioContext || window.webkitAudioContext;
+  audioCtx = new AudioContext();
+}
+
+async function setupMidi() {
+  if (!navigator.requestMIDIAccess) {
+    els.midiHint.textContent = 'Web MIDI niet beschikbaar in deze browser.';
+    return;
+  }
+  try {
+    state.midiAccess = await navigator.requestMIDIAccess();
+    refreshMidiOutputs();
+    state.midiAccess.onstatechange = refreshMidiOutputs;
+  } catch (err) {
+    els.midiHint.textContent = 'MIDI toegang geweigerd.';
+  }
+}
+
+function refreshMidiOutputs() {
+  if (!state.midiAccess) return;
+  const current = els.midiOutputSelect.value;
+  els.midiOutputSelect.innerHTML = '<option value="">Geen output</option>';
+  for (const output of state.midiAccess.outputs.values()) {
+    const opt = document.createElement('option');
+    opt.value = output.id;
+    opt.textContent = output.name;
+    els.midiOutputSelect.appendChild(opt);
+  }
+  els.midiOutputSelect.value = current || '';
+  state.midiOutputId = els.midiOutputSelect.value;
+}
+
+function createTrackFromTemplate(template, index) {
+  return {
+    id: crypto.randomUUID(),
+    index,
+    name: template.name,
+    midiNote: template.midiNote,
+    freq: template.freq,
+    mute: false,
+    solo: false,
+    probability: 100,
+    swing: 0,
+    accent: 100,
+    settingsOpen: false,
+    steps: Array.from({ length: state.length }, () => false)
+  };
+}
+
+function applyVolcaProfile(resetPattern) {
+  state.volca = els.volcaSelect.value;
+  const profile = volcaProfiles[state.volca];
+  els.midiChannelSelect.value = String(profile.channel);
+  els.midiHint.textContent = `Advies ${profile.name}: kanaal ${profile.channel} · tracks ${profile.initialVisible}/${profile.maxTracks} zichtbaar · swing = timing · accent = best effort`;
+  state.trackTemplates = profile.tracks.map((t, index) => ({ ...t, index }));
+  state.maxTracks = Math.min(profile.maxTracks || profile.tracks.length, state.trackTemplates.length);
+  const visibleCount = Math.min(profile.initialVisible || 4, state.maxTracks);
+  state.tracks = state.trackTemplates.slice(0, visibleCount).map((t, index) => createTrackFromTemplate(t, index));
+  state.activeTrack = 0;
+  state.activeSetting = 'probability';
+  const defaultBpm = styleDefaults[state.style].bpm;
+  state.bpm = defaultBpm;
+  els.bpmInput.value = defaultBpm;
+  if (resetPattern) generatePattern();
+  render();
+}
+
+function addTrack(announce = true) {
+  if (state.tracks.length >= state.maxTracks) {
+    if (announce) setStatus('Maximum aantal tracks bereikt');
+    return false;
+  }
+  const template = state.trackTemplates[state.tracks.length];
+  if (!template) {
+    if (announce) setStatus('Geen extra sound beschikbaar');
+    return false;
+  }
+  const track = createTrackFromTemplate(template, state.tracks.length);
+  state.tracks.push(track);
+  state.activeTrack = state.tracks.length - 1;
+  render();
+  if (announce) setStatus(`${track.name} toegevoegd (${state.tracks.length}/${state.maxTracks})`);
+  return true;
+}
+
+function removeTrack(announce = true) {
+  const profile = volcaProfiles[state.volca];
+  const minimum = Math.min(profile.initialVisible || 4, state.maxTracks);
+  if (state.tracks.length <= minimum) {
+    if (announce) setStatus(`Minimaal ${minimum} tracks zichtbaar voor ${profile.name}`);
+    return false;
+  }
+  const removed = state.tracks.pop();
+  state.activeTrack = clamp(state.activeTrack, 0, state.tracks.length - 1);
+  render();
+  if (announce) setStatus(`${removed.name} verwijderd`);
+  return true;
+}
+
+function regenerateTrackLengths() {
+  state.tracks.forEach(track => {
+    track.steps = Array.from({ length: state.length }, (_, i) => track.steps[i] || false);
+  });
+  if (state.currentStep >= state.length) state.currentStep = 0;
+}
+
+function clearPattern() {
+  state.tracks.forEach(track => track.steps = Array.from({ length: state.length }, () => false));
+  render();
+  setStatus('Pattern gewist');
+}
+
+function generatePattern() {
+  const cfg = styleDefaults[state.style];
+  state.bpm = cfg.bpm;
+  els.bpmInput.value = cfg.bpm;
+  state.tracks.forEach((track, i) => {
+    track.steps = Array.from({ length: state.length }, () => false);
+    fillTrackByRole(track, i, cfg, state.variation, state.length);
+  });
+  render();
+  setStatus(`${state.style} pattern gegenereerd`);
+}
+
+function fillTrackByRole(track, trackIndex, cfg, variation, length) {
+  const oneBar = 16;
+  const repeatCount = Math.max(1, length / oneBar);
+  const localSteps = Array.from({ length: oneBar }, () => false);
+  if (trackIndex === 0) applyKick(localSteps, cfg.kick, variation);
+  if (trackIndex === 1) applySnare(localSteps, cfg.snare, variation);
+  if (trackIndex === 2) applyHat(localSteps, cfg.hihat, variation);
+  if (trackIndex === 3) applyGhost(localSteps, cfg.ghost, variation);
+  for (let r = 0; r < repeatCount; r++) {
+    for (let i = 0; i < Math.min(oneBar, length - r * oneBar); i++) track.steps[r * oneBar + i] = localSteps[i];
+  }
+}
+
+function applyKick(steps, pattern, variation) {
+  if (pattern === 'four') [0,4,8,12].forEach(i => steps[i] = true);
+  else pattern.forEach(i => steps[i] = true);
+  if (variation === 'busy' && !steps[14]) steps[14] = true;
+  if (variation === 'minimal') [2,6,10,14].forEach(i => { if (Math.random() < 0.9) steps[i] = false; });
+  if (variation === 'groovy' && !steps[11]) steps[11] = true;
+  if (variation === 'broken') { steps[8] = false; steps[10] = true; }
+}
+
+function applySnare(steps, pattern, variation) {
+  pattern.forEach(i => steps[i] = true);
+  if (variation === 'busy') steps[15] = true;
+  if (variation === 'minimal') steps[15] = false;
+  if (variation === 'broken') { steps[12] = false; steps[11] = true; }
+}
+
+function applyHat(steps, mode, variation) {
+  const sets = {
+    offbeat: [2,6,10,14],
+    straight: [0,2,4,6,8,10,12,14],
+    busy: [0,2,3,4,6,8,10,11,12,14,15],
+    half: [2,10],
+    sparse: [0,8],
+    lazy: [3,7,11,15]
+  };
+  (sets[mode] || sets.offbeat).forEach(i => steps[i] = true);
+  if (variation === 'minimal') [0,4,8,12].forEach(i => steps[i] = false);
+  if (variation === 'busy') [1,5,9,13].forEach(i => steps[i] = true);
+}
+
+function applyGhost(steps, pattern, variation) {
+  pattern.forEach(i => steps[i] = true);
+  if (variation === 'default') steps[3] = false;
+  if (variation === 'minimal') pattern.forEach((i, idx) => { if (idx > 0) steps[i] = false; });
+  if (variation === 'groovy') steps[9] = true;
+  if (variation === 'busy') steps[5] = true;
+}
+
+function updateTrackControls() {
+  const profile = volcaProfiles[state.volca];
+  const minimum = Math.min(profile.initialVisible || 4, state.maxTracks);
+  els.trackCountText.textContent = `${state.tracks.length}/${state.maxTracks} tracks`;
+  els.trackHelpText.textContent = profile.name === 'Volca Beats'
+    ? 'Bij Volca Beats zijn de eerste 4 direct gevuld; 2 extra tracks kun je later toevoegen.'
+    : `Bij ${profile.name} start je met ${minimum} tracks en kun je uitbreiden tot ${state.maxTracks}.`;
+  els.addTrackBtn.disabled = state.tracks.length >= state.maxTracks;
+  els.removeTrackBtn.disabled = state.tracks.length <= minimum;
+}
+
+function render() {
+  updateTrackControls();
+  els.tracksContainer.innerHTML = '';
+  els.tracksContainer.classList.toggle('has-active-track', state.activeTrack !== null && state.activeTrack !== undefined);
+  state.tracks.forEach((track, trackIndex) => {
+    const isActive = trackIndex === state.activeTrack;
+    const isOpen = !!track.settingsOpen;
+
+    const wrap = document.createElement('section');
+    wrap.className = `track len-${state.length}${isActive ? ' active' : ''}${isOpen ? ' panel-open' : ' panel-closed'}`;
+    wrap.dataset.trackIndex = trackIndex;
+
+    const head = document.createElement('div');
+    head.className = 'track-head';
+
+    const title = document.createElement('div');
+    title.className = 'track-title';
+    title.innerHTML = `
+      <div class="track-title-stack">
+        <button type="button" class="track-toggle-label ${isOpen ? 'open' : ''}" data-action="settings" aria-expanded="${isOpen ? 'true' : 'false'}">
+          <span class="track-toggle-caret">${isOpen ? '▼' : '▶'}</span>
+          <span class="track-name">${track.name}</span>
+        </button>
+        <div class="track-badge">BPM ${state.bpm} · Note ${track.midiNote} · <b>Slot ${trackIndex + 1}</b></div>
+      </div>
+    `;
+
+    const preview = document.createElement('div');
+    preview.className = `track-preview grid-shell inline-grid-shell${isActive ? ' active-electra' : ''}${isActive && state.isPlaying ? ' playing-electra' : ''}`;
+    const previewGrid = document.createElement('div');
+    previewGrid.className = 'step-grid preview-grid';
+    track.steps.forEach((isOn, stepIndex) => {
+      const step = document.createElement('button');
+      step.type = 'button';
+      step.className = `step${isOn ? ' on' : ''}${state.currentStep === stepIndex && state.isPlaying ? ' current' : ''}`;
+      step.textContent = stepIndex + 1;
+      step.dataset.trackIndex = trackIndex;
+      step.dataset.stepIndex = stepIndex;
+      step.tabIndex = 0;
+      step.addEventListener('click', () => toggleStep(trackIndex, stepIndex));
+      step.addEventListener('pointerdown', () => {
+        setActiveTrack(trackIndex, false);
+        state.drawMode = !track.steps[stepIndex];
+        setStep(trackIndex, stepIndex, state.drawMode);
+      });
+      step.addEventListener('pointerenter', (ev) => {
+        if (ev.buttons !== 1 || state.drawMode === null) return;
+        setStep(trackIndex, stepIndex, state.drawMode);
+      });
+      previewGrid.appendChild(step);
+    });
+    preview.appendChild(previewGrid);
+
+    const actions = document.createElement('div');
+    actions.className = 'track-actions';
+    actions.innerHTML = `
+      <button class="track-btn icon-btn mute-btn ${track.mute ? 'active-state' : ''}" data-action="mute" title="Mute" aria-label="Mute track"><span aria-hidden="true">M</span></button>
+      <button class="track-btn icon-btn solo-btn ${track.solo ? 'solo-state' : ''}" data-action="solo" title="Solo" aria-label="Solo track"><span aria-hidden="true">S</span></button>
+      <button class="track-btn icon-btn settings-btn ${track.settingsOpen ? 'active-state' : ''}" data-action="settings" title="Instellingen" aria-label="Instellingen"><span aria-hidden="true">⚙</span></button>
+    `;
+
+    head.appendChild(title);
+    head.appendChild(preview);
+    head.appendChild(actions);
+
+    const panel = document.createElement('div');
+    panel.className = `track-panel ${isOpen ? 'open' : ''}`;
+
+    if (isOpen) {
+      const controlsRow = document.createElement('div');
+      controlsRow.className = 'panel-controls-row';
+      controlsRow.innerHTML = `
+        ${renderSettingRow(track, 'probability')}
+        ${renderSettingRow(track, 'swing')}
+        ${renderSettingRow(track, 'accent')}
+      `;
+      controlsRow.addEventListener('click', (e) => {
+        const row = e.target.closest('.range-row');
+        if (!row) return;
+        setActiveSetting(row.dataset.prop, false);
+      });
+      controlsRow.addEventListener('input', (e) => {
+        const prop = e.target.dataset.prop;
+        if (!prop) return;
+        setActiveTrack(trackIndex, false);
+        setActiveSetting(prop, false);
+        track[prop] = clampValueForProp(prop, Number(e.target.value));
+        render();
+      });
+      panel.appendChild(controlsRow);
+    }
+
+    head.addEventListener('click', (e) => {
+      setActiveTrack(trackIndex, false);
+      const actionTarget = e.target.closest('[data-action]');
+      const action = actionTarget ? actionTarget.dataset.action : '';
+      if (!action) return;
+      if (action === 'mute') toggleMute(trackIndex);
+      if (action === 'solo') toggleSolo(trackIndex);
+      if (action === 'settings') toggleTrackSettings(trackIndex);
+    });
+
+    panel.addEventListener('click', (e) => {
+      const actionTarget = e.target.closest('[data-action]');
+      if (!actionTarget) return;
+      setActiveTrack(trackIndex, false);
+      const action = actionTarget.dataset.action;
+      if (action === 'mute') toggleMute(trackIndex);
+      if (action === 'solo') toggleSolo(trackIndex);
+      if (action === 'settings') toggleTrackSettings(trackIndex);
+    });
+
+    wrap.addEventListener('click', (e) => {
+      if (!e.target.closest('.step') && !e.target.closest('.track-head') && !e.target.closest('.track-panel')) {
+        setActiveTrack(trackIndex);
+      }
+    });
+
+    wrap.appendChild(head);
+    wrap.appendChild(panel);
+    els.tracksContainer.appendChild(wrap);
+  });
+  updatePlaybackVisuals();
+}
+
+function updatePlaybackVisuals() {
+  if (!els.tracksContainer) return;
+  els.tracksContainer.classList.toggle('has-active-track', state.activeTrack !== null && state.activeTrack !== undefined);
+  const trackEls = els.tracksContainer.querySelectorAll('.track');
+  trackEls.forEach((wrap, trackIndex) => {
+    const isActive = trackIndex === state.activeTrack;
+    wrap.classList.toggle('active', isActive);
+    const preview = wrap.querySelector('.track-preview');
+    if (preview) {
+      preview.classList.toggle('active-electra', isActive);
+      preview.classList.toggle('playing-electra', isActive && state.isPlaying);
+    }
+    const steps = wrap.querySelectorAll('.step');
+    steps.forEach((stepEl, stepIndex) => {
+      stepEl.classList.toggle('current', state.isPlaying && stepIndex === state.currentStep);
+    });
+  });
+}
+
+function renderSettingRow(track, prop) {
+  const meta = settingMeta[prop];
+  const selected = track.settingsOpen && state.activeTrack !== null && prop === state.activeSetting;
+  return `
+    <label class="range-row panel-range ${selected ? 'selected' : ''}" data-prop="${prop}">
+      <div class="panel-range-top">
+        <span class="panel-range-title">${meta.label}</span>
+        <span class="panel-range-short">${meta.short}</span>
+        <output class="panel-range-value">${track[prop]}${meta.suffix}</output>
+      </div>
+      <div class="panel-range-slider-wrap">
+        <input type="range" min="${meta.min}" max="${meta.max}" step="1" value="${track[prop]}" data-prop="${prop}">
+      </div>
+    </label>
+  `;
+}
+
+function setActiveTrack(index, announce = true) {
+  state.activeTrack = index;
+  render();
+  if (announce) setStatus(`Track ${index + 1} actief: ${state.tracks[index].name}`);
+}
+
+function toggleMute(index) {
+  state.tracks[index].mute = !state.tracks[index].mute;
+  render();
+  setStatus(`${state.tracks[index].name} ${state.tracks[index].mute ? 'gemute' : 'unmute'}`);
+}
+
+function toggleSolo(index) {
+  state.tracks[index].solo = !state.tracks[index].solo;
+  render();
+  setStatus(`${state.tracks[index].name} ${state.tracks[index].solo ? 'solo' : 'solo uit'}`);
+}
+
+function toggleTrackSettings(index = state.activeTrack) {
+  const track = state.tracks[index];
+  track.settingsOpen = !track.settingsOpen;
+  state.activeTrack = index;
+  if (track.settingsOpen && !state.activeSetting) state.activeSetting = 'probability';
+  render();
+  setStatus(`${track.name} instellingen ${track.settingsOpen ? 'open' : 'dicht'}`);
+}
+
+function setActiveSetting(prop, announce = true) {
+  if (!settingMeta[prop]) return;
+  state.activeSetting = prop;
+  render();
+  if (announce) setStatus(`${settingMeta[prop].label} geselecteerd voor ${state.tracks[state.activeTrack].name}`);
+}
+
+function adjustActiveSetting(delta) {
+  const track = state.tracks[state.activeTrack];
+  if (!track?.settingsOpen) return false;
+  const meta = settingMeta[state.activeSetting];
+  if (!meta) return false;
+  track[state.activeSetting] = clamp(track[state.activeSetting] + delta * meta.step, meta.min, meta.max);
+  render();
+  setStatus(`${track.name} ${meta.label}: ${track[state.activeSetting]}${meta.suffix}`);
+  return true;
+}
+
+function clampValueForProp(prop, value) {
+  const meta = settingMeta[prop];
+  if (!meta) return value;
+  return clamp(value, meta.min, meta.max);
+}
+
+function toggleStep(trackIndex, stepIndex) {
+  setStep(trackIndex, stepIndex, !state.tracks[trackIndex].steps[stepIndex]);
+}
+
+function setStep(trackIndex, stepIndex, value) {
+  state.tracks[trackIndex].steps[stepIndex] = value;
+  render();
+}
+
+function onKeydown(e) {
+  const tag = document.activeElement?.tagName;
+  const isTyping = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
+
+  if (e.code === 'Space' && !isTyping) {
+    e.preventDefault();
+    togglePlay();
+    return;
+  }
+  if (isTyping) return;
+
+  const activeSettingsOpen = state.tracks[state.activeTrack]?.settingsOpen;
+  const lower = e.key.toLowerCase();
+  const num = Number(e.key);
+
+  if (num >= 1 && num <= state.tracks.length) { setActiveTrack(num - 1); return; }
+  if (e.shiftKey && lower === 'm') { state.tracks.forEach(t => t.mute = false); render(); setStatus('Alle mutes uit'); return; }
+  if (e.shiftKey && lower === 's') { state.tracks.forEach(t => t.solo = false); render(); setStatus('Alle solo uit'); return; }
+  if (lower === 'i') { toggleTrackSettings(state.activeTrack); return; }
+  if (lower === 'm') { toggleMute(state.activeTrack); return; }
+  if (lower === 'p' && activeSettingsOpen) { setActiveSetting('probability'); return; }
+  if (lower === 'a' && activeSettingsOpen) { setActiveSetting('accent'); return; }
+  if ((e.key === '+' || e.key === '=' || e.code === 'NumpadAdd') && activeSettingsOpen) {
+    e.preventDefault();
+    if (adjustActiveSetting(1)) return;
+  }
+  if ((e.key === '-' || e.code === 'NumpadSubtract') && activeSettingsOpen) {
+    e.preventDefault();
+    if (adjustActiveSetting(-1)) return;
+  }
+  if (lower === 's') {
+    if (activeSettingsOpen) setActiveSetting('swing');
+    else toggleSolo(state.activeTrack);
+    return;
+  }
+  if (lower === 'escape' && activeSettingsOpen) { toggleTrackSettings(state.activeTrack); return; }
+  if (lower === 'g') { generatePattern(); return; }
+  if (lower === 'c') { clearPattern(); return; }
+  if (lower === 'v') {
+    const options = [...els.variationSelect.options].map(o => o.value);
+    const next = options[(options.indexOf(state.variation) + 1) % options.length];
+    state.variation = next;
+    els.variationSelect.value = next;
+    generatePattern();
+    return;
+  }
+}
+
+function togglePlay() {
+  if (!audioCtx) return;
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  state.isPlaying = !state.isPlaying;
+  els.playBtn.textContent = state.isPlaying ? 'Stop' : 'Play';
+  if (state.isPlaying) {
+    state.currentStep = 0;
+    state.nextStepTime = audioCtx.currentTime + 0.05;
+    state.lastClockTick = performance.now();
+    render();
+    scheduler();
+    sendMidiTransport(true);
+    setStatus('Play');
+  } else {
+    clearTimeout(state.timerId);
+    sendMidiTransport(false);
+    setStatus('Stop');
+    render();
+  }
+}
+
+function scheduler() {
+  const lookAhead = 0.1;
+  while (state.nextStepTime < audioCtx.currentTime + lookAhead) {
+    scheduleStep(state.currentStep, state.nextStepTime);
+    advanceStep();
+  }
+  if (state.isPlaying) state.timerId = setTimeout(scheduler, 25);
+}
+
+function advanceStep() {
+  const secondsPerStep = 60 / state.bpm / 4;
+  state.nextStepTime += secondsPerStep;
+  state.currentStep = (state.currentStep + 1) % state.length;
+}
+
+function scheduleStep(stepIndex, time) {
+  const soloActive = state.tracks.some(t => t.solo);
+  const secondsPerStep = 60 / state.bpm / 4;
+  state.tracks.forEach(track => {
+    if (!track.steps[stepIndex]) return;
+    if (track.mute) return;
+    if (soloActive && !track.solo) return;
+    if (Math.random() * 100 > track.probability) return;
+    const swingOffset = getSwingOffsetSeconds(track.swing, stepIndex, secondsPerStep);
+    const playTime = time + swingOffset;
+    const accentData = getAccentData(track.accent, stepIndex, secondsPerStep);
+    playTrack(track, playTime, accentData);
+    sendMidiNote(track, playTime, accentData);
+  });
+  if (state.midiEnabled && state.midiClockEnabled) sendMidiClockBurst();
+  updatePlaybackVisuals();
+}
+
+function getSwingOffsetSeconds(swingPercent, stepIndex, secondsPerStep) {
+  if (stepIndex % 2 === 0 || swingPercent <= 0) return 0;
+  return secondsPerStep * 0.34 * (swingPercent / 100);
+}
+
+function getAccentData(accentValue, stepIndex, secondsPerStep) {
+  const normalized = clamp((accentValue - 20) / 107, 0, 1);
+  return {
+    normalized,
+    velocity: Math.round(55 + normalized * 72),
+    gain: 0.35 + normalized * 0.75,
+    gate: 0.07 + normalized * 0.08,
+    retrigger: normalized > 0.55,
+    retriggerDelayMs: Math.min(28, Math.max(12, secondsPerStep * 1000 * (0.08 + normalized * 0.06))),
+    retriggerVelocity: Math.round(35 + normalized * 38)
+  };
+}
+
+function playTrack(track, time, accentData = getAccentData(track.accent, 0, 60 / state.bpm / 4)) {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  const noise = audioCtx.createBufferSource();
+  const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.04, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  noise.buffer = buffer;
+
+  osc.frequency.setValueAtTime(track.freq, time);
+  gain.gain.setValueAtTime(accentData.gain, time);
+  gain.gain.exponentialRampToValueAtTime(0.0001, time + accentData.gate);
+
+  if (track.name.toLowerCase().includes('hat')) {
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = 3000;
+    noise.connect(filter).connect(gain).connect(audioCtx.destination);
+    noise.start(time);
+    noise.stop(time + Math.min(0.06, accentData.gate));
+  } else if (track.name.toLowerCase().includes('snare')) {
+    noise.connect(gain).connect(audioCtx.destination);
+    osc.connect(gain).connect(audioCtx.destination);
+    noise.start(time);
+    noise.stop(time + Math.min(0.1, accentData.gate + 0.02));
+    osc.start(time);
+    osc.stop(time + Math.min(0.11, accentData.gate + 0.03));
+  } else {
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(time);
+    osc.stop(time + Math.min(0.14, accentData.gate + 0.03));
+  }
+}
+
+function getMidiOutput() {
+  if (!state.midiAccess || !state.midiEnabled || !state.midiOutputId) return null;
+  return state.midiAccess.outputs.get(state.midiOutputId) || null;
+}
+
+function sendMidiTransport(start) {
+  const output = getMidiOutput();
+  if (!output) return;
+  output.send([start ? 0xFA : 0xFC]);
+}
+
+function sendMidiClockBurst() {
+  const output = getMidiOutput();
+  if (!output) return;
+  const now = performance.now();
+  if (now - state.lastClockTick < 15) return;
+  state.lastClockTick = now;
+  output.send([0xF8]);
+}
+
+function sendMidiNote(track, whenTime = audioCtx.currentTime, accentData = getAccentData(track.accent, 0, 60 / state.bpm / 4)) {
+  const output = getMidiOutput();
+  if (!output) return;
+  const ch = clamp(Number(els.midiChannelSelect.value) - 1, 0, 15);
+  const on = 0x90 + ch;
+  const off = 0x80 + ch;
+  const velocity = clamp(accentData.velocity, 1, 127);
+  const baseMs = performance.now() + Math.max(0, (whenTime - audioCtx.currentTime) * 1000);
+  const gateMs = Math.round(55 + accentData.normalized * 45);
+  output.send([on, track.midiNote, velocity], baseMs);
+  output.send([off, track.midiNote, 0], baseMs + gateMs);
+
+  if (accentData.retrigger) {
+    const retriggerAt = baseMs + accentData.retriggerDelayMs;
+    output.send([on, track.midiNote, clamp(accentData.retriggerVelocity, 1, 127)], retriggerAt);
+    output.send([off, track.midiNote, 0], retriggerAt + Math.max(26, gateMs - 20));
+  }
+}
+
+function savePattern() {
+  const payload = {
+    style: state.style,
+    variation: state.variation,
+    length: state.length,
+    bpm: state.bpm,
+    volca: state.volca,
+    activeSetting: state.activeSetting,
+    visibleTrackCount: state.tracks.length,
+    tracks: state.tracks.map(({ name, midiNote, freq, mute, solo, probability, swing, accent, steps, settingsOpen }) =>
+      ({ name, midiNote, freq, mute, solo, probability, swing, accent, steps, settingsOpen }))
+  };
+  localStorage.setItem('volca-sequencer-save', JSON.stringify(payload));
+  setStatus('Pattern opgeslagen');
+}
+
+function loadPattern() {
+  const raw = localStorage.getItem('volca-sequencer-save');
+  if (!raw) { setStatus('Geen opgeslagen pattern'); return; }
+  try {
+    const data = JSON.parse(raw);
+    state.style = data.style || state.style;
+    state.variation = data.variation || state.variation;
+    state.length = data.length || state.length;
+    state.bpm = data.bpm || state.bpm;
+    state.activeSetting = data.activeSetting || state.activeSetting;
+    els.styleSelect.value = state.style;
+    els.variationSelect.value = state.variation;
+    els.lengthSelect.value = String(state.length);
+    els.volcaSelect.value = data.volca || state.volca;
+    applyVolcaProfile(false);
+    const wantedCount = clamp(data.visibleTrackCount || data.tracks.length || state.tracks.length, 1, state.maxTracks || state.tracks.length);
+    while (state.tracks.length < wantedCount) addTrack(false);
+    while (state.tracks.length > wantedCount) removeTrack(false);
+    state.tracks = data.tracks.slice(0, state.tracks.length).map((track, idx) => ({ ...state.tracks[idx], ...track, id: crypto.randomUUID() }));
+    els.bpmInput.value = state.bpm;
+    render();
+    setStatus('Pattern geladen');
+  } catch {
+    setStatus('Laden mislukt');
+  }
+}
+
+function setStatus(msg) { els.statusText.textContent = msg; }
+function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+
+window.addEventListener('pointerup', () => { state.drawMode = null; });
+window.addEventListener('load', init);

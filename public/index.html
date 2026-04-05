@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Volca Style Sequencer</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="theme-80s">
+  <div class="app-shell">
+    <header class="topbar card">
+      <div>
+        <h1>Volca Style Sequencer</h1>
+        <p class="sub">Klik een track of druk <strong>1–9</strong>, daarna <strong>M</strong> mute, <strong>S</strong> solo, <strong>I</strong> instellingen. Met instellingen open: <strong>P</strong> probability, <strong>S</strong> swing, <strong>A</strong> accent en <strong>+</strong>/<strong>-</strong> aanpassen.</p>
+      </div>
+      <div class="topbar-actions">
+        <!-- Theme switcher -->
+        <div class="theme-switcher">
+          <label for="themePicker">Stijl</label>
+          <select id="themePicker">
+            <option value="theme-dark">Dark</option>
+            <option value="theme-80s" selected>80s Hardware</option>
+            <option value="theme-pcb">PCB / Green</option>
+            <option value="theme-minimal">Minimal</option>
+          </select>
+        </div>
+        <button id="settingsToggleBtn" class="secondary settings-toggle-btn" type="button" aria-expanded="true">▲ Instellingen omhoog</button>
+        <div class="status" id="statusText">Klaar</div>
+      </div>
+    </header>
+
+    <section id="controlStack" class="control-stack">
+      <div id="advancedPanel" class="advanced-panel">
+        <section class="controls card">
+          <div class="field">
+            <label for="lengthSelect">Steps</label>
+            <select id="lengthSelect">
+              <option>8</option>
+              <option selected>16</option>
+              <option>32</option>
+              <option>64</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="volcaSelect">Volca</label>
+            <select id="volcaSelect">
+              <option value="beats" selected>Volca Beats</option>
+              <option value="sample">Volca Sample</option>
+              <option value="drum">Volca Drum</option>
+            </select>
+          </div>
+          <div class="buttons-wrap buttons-wrap-wide">
+            <button id="clearBtn" class="secondary">Clear</button>
+            <button id="saveBtn" class="secondary">Save</button>
+            <button id="loadBtn" class="secondary">Load</button>
+          </div>
+        </section>
+
+        <section class="midi card">
+          <div class="field toggle-field">
+            <label for="midiEnable">MIDI</label>
+            <label class="switch" for="midiEnable">
+              <input id="midiEnable" type="checkbox" />
+              <span class="switch-ui" aria-hidden="true"></span>
+              <span class="switch-text"><span class="switch-on">Aan</span><span class="switch-off">Uit</span></span>
+            </label>
+          </div>
+          <div class="field">
+            <label for="midiOutputSelect">Output</label>
+            <select id="midiOutputSelect"><option value="">Geen output</option></select>
+          </div>
+          <div class="field small">
+            <label for="midiChannelSelect">Kanaal</label>
+            <select id="midiChannelSelect"></select>
+          </div>
+          <div class="field toggle-field">
+            <label for="clockEnable">Clock</label>
+            <label class="switch" for="clockEnable">
+              <input id="clockEnable" type="checkbox" checked />
+              <span class="switch-ui" aria-hidden="true"></span>
+              <span class="switch-text"><span class="switch-on">Aan</span><span class="switch-off">Uit</span></span>
+            </label>
+          </div>
+          <div class="midi-hint" id="midiHint">Advies Volca Beats: kanaal 1</div>
+        </section>
+
+        <section class="shortcuts card">
+          <div><strong>Shortcuts</strong></div>
+          <div>1–9 = track kiezen · M = mute · S = solo · I = instellingen · P/S/A = instelling kiezen · +/- = aanpassen · Shift+M = alle mutes uit · Shift+S = alle solo uit · Spatie = play/stop</div>
+        </section>
+      </div>
+
+      <section class="quick-bar card">
+        <div class="quick-bar-main">
+          <div class="field">
+            <label for="styleSelect">Stijl</label>
+            <select id="styleSelect"></select>
+          </div>
+          <div class="field">
+            <label for="variationSelect">Groove</label>
+            <select id="variationSelect">
+              <option value="default">Default</option>
+              <option value="minimal">Minimal</option>
+              <option value="groovy">Groovy</option>
+              <option value="broken">Broken</option>
+              <option value="busy">Busy</option>
+            </select>
+          </div>
+          <div class="field bpm-field">
+            <label for="bpmInput">BPM</label>
+            <input id="bpmInput" type="number" min="40" max="240" value="174" />
+          </div>
+          <div class="buttons-wrap quick-buttons">
+            <button id="generateBtn">Genereer</button>
+            <button id="addTrackBtn" class="secondary">Track +</button>
+            <button id="removeTrackBtn" class="secondary">Track -</button>
+            <button id="playBtn" class="accent">Play</button>
+          </div>
+        </div>
+        <div class="track-count-row">
+          <span id="trackCountText">4/6 tracks</span>
+          <span id="trackHelpText">Bij Volca Beats zijn de eerste 4 direct gevuld; 2 extra tracks kun je later toevoegen.</span>
+        </div>
+      </section>
+    </section>
+
+    <main id="tracksContainer" class="tracks"></main>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Theme switcher
+    (function() {
+      const picker = document.getElementById('themePicker');
+      const THEMES = ['theme-dark','theme-80s','theme-pcb','theme-minimal'];
+      const saved = localStorage.getItem('vss-theme') || 'theme-80s';
+      picker.value = saved;
+      document.body.className = saved;
+      picker.addEventListener('change', () => {
+        const t = picker.value;
+        document.body.className = t;
+        localStorage.setItem('vss-theme', t);
+      });
+    })();
+  </script>
+
+  <div id="selectorModal" class="selector-modal hidden" aria-hidden="true"></div>
+</body>
+</html>
