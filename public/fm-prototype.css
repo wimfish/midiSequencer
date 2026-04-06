@@ -104,6 +104,10 @@ body.fm-prototype-page input {
 ========================================= */
 
 .fm-sequencer-card {
+  overflow: hidden;
+}
+
+.fm-sequencer-card {
   background:
     linear-gradient(90deg, rgba(0, 0, 0, 0.45) 0 4px, transparent 4px 60px),
     linear-gradient(0deg, rgba(0, 0, 0, 0.42) 0 4px, transparent 4px 60px),
@@ -112,35 +116,6 @@ body.fm-prototype-page input {
     radial-gradient(circle at 18% 22%, rgba(255, 220, 140, 0.18), transparent 20%),
     radial-gradient(circle at 78% 70%, rgba(255, 240, 180, 0.14), transparent 22%),
     linear-gradient(180deg, #b8842a 0%, #8f651c 100%) !important;
-}
-
-.fm-sequencer-inner {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 14px 16px 16px;
-  border-radius: 14px;
-  border: 1px solid rgba(102, 73, 24, 0.65);
-  background:
-  /* dikke verticale banen */
-  linear-gradient(90deg, rgba(0, 0, 0, 0.45) 0 4px, transparent 4px 60px),
-
-  /* dikke horizontale banen */
-  linear-gradient(0deg, rgba(0, 0, 0, 0.42) 0 4px, transparent 4px 60px),
-
-  /* dunne verticale lijnen */
-  linear-gradient(90deg, rgba(0, 0, 0, 0.35) 0 1px, transparent 1px 30px),
-
-  /* dunne horizontale lijnen */
-  linear-gradient(0deg, rgba(0, 0, 0, 0.32) 0 1px, transparent 1px 30px),
-
-  /* subtiele lichtvlekken */
-  radial-gradient(circle at 18% 22%, rgba(255, 220, 140, 0.18), transparent 20%),
-  radial-gradient(circle at 78% 70%, rgba(255, 240, 180, 0.14), transparent 22%),
-
-  /* basis oker */
-  linear-gradient(180deg, #b8842a 0%, #8f651c 100%);
 }
 
 .fm-sequencer-card .fm-section-title {
