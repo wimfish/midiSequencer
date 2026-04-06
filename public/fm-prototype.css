@@ -409,6 +409,51 @@ body.mode-live .sequencer-wrap .cell.cursor {
   outline-color: rgba(255, 202, 109, 0.9);
 }
 
+/* PIANO */
+
+.piano-wrap {
+  padding: 20px;
+}
+
+.piano-title {
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.piano {
+  position: relative;
+  height: 140px;
+  display: flex;
+}
+
+.piano-key {
+  width: 40px;
+  height: 140px;
+  background: linear-gradient(#fff, #ddd);
+  border: 1px solid #999;
+  margin-right: 2px;
+  position: relative;
+  cursor: pointer;
+}
+
+.piano-key.black {
+  width: 26px;
+  height: 90px;
+  background: black;
+  position: absolute;
+  top: 0;
+  z-index: 2;
+  margin-left: -13px;
+}
+
+.piano-key:hover {
+  background: #ffe08a;
+}
+
+.piano-key.black:hover {
+  background: #444;
+}
+
 @media (max-width: 1180px) {
   .piano-row {
     grid-template-columns: repeat(6, minmax(78px, 1fr));

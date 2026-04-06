@@ -366,6 +366,7 @@ function render() {
   buildLabels();
   renderGrid();
   renderPianoKeys();
+  buildPiano();	
   updateCursorInfo();
   updateModeHint();
 }
@@ -743,6 +744,37 @@ function bindEvents() {
 
   document.addEventListener("keyup", (event) => {
     state.heldKeys.delete(event.key.toLowerCase());
+  });
+}
+
+function buildPiano() {
+  const piano = document.getElementById("piano");
+  piano.innerHTML = "";
+
+  const notes = [
+    { n: 60, black: false }, // C
+    { n: 61, black: true },
+    { n: 62, black: false },
+    { n: 63, black: true },
+    { n: 64, black: false },
+    { n: 65, black: false },
+    { n: 66, black: true },
+    { n: 67, black: false },
+    { n: 68, black: true },
+    { n: 69, black: false },
+    { n: 70, black: true },
+    { n: 71, black: false }
+  ];
+
+  notes.forEach(note => {
+    const key = document.createElement("div");
+    key.className = "piano-key" + (note.black ? " black" : "");
+
+    key.addEventListener("click", () => {
+      previewChord([note.n], 110, 200);
+    });
+
+    piano.appendChild(key);
   });
 }
 
