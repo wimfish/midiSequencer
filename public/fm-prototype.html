@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Volca FM Prototype</title>
+  <link rel="stylesheet" href="fm-prototype.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar card">
+      <div>
+        <h1>Volca FM Prototype</h1>
+        <p class="sub">
+          Losse testversie voor gevoel: piano-roll + live toetsen.
+          Pijlen links/rechts = step kiezen, pijlen omhoog/omlaag = noot veranderen,
+          Enter = step aan/uit, spatie = play/stop.
+        </p>
+      </div>
+
+      <div class="top-actions">
+        <button id="playBtn" class="accent" type="button">Play</button>
+        <button id="stopBtn" class="secondary" type="button">Stop</button>
+        <button id="clearBtn" class="secondary" type="button">Clear</button>
+        <button id="saveBtn" class="secondary" type="button">Save</button>
+        <button id="loadBtn" class="secondary" type="button">Load</button>
+      </div>
+    </header>
+
+    <section class="panel-row">
+      <section class="card controls">
+        <div class="field">
+          <label for="tempoInput">BPM</label>
+          <input id="tempoInput" type="number" min="40" max="240" value="132" />
+        </div>
+
+        <div class="field">
+          <label for="stepCountSelect">Steps</label>
+          <select id="stepCountSelect">
+            <option value="8">8</option>
+            <option value="16" selected>16</option>
+            <option value="32">32</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="gateInput">Gate %</label>
+          <input id="gateInput" type="number" min="5" max="95" value="70" />
+        </div>
+
+        <div class="field">
+          <label for="octaveShift">Octaaf</label>
+          <select id="octaveShift">
+            <option value="-12">-1</option>
+            <option value="0" selected>0</option>
+            <option value="12">+1</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="card midi-panel">
+        <div class="field toggle-field">
+          <label for="midiEnable">MIDI</label>
+          <input id="midiEnable" type="checkbox" checked />
+        </div>
+
+        <div class="field">
+          <label for="midiOutputSelect">Output</label>
+          <select id="midiOutputSelect">
+            <option value="">Geen output</option>
+          </select>
+        </div>
+
+        <div class="field small">
+          <label for="midiChannelSelect">Kanaal</label>
+          <select id="midiChannelSelect"></select>
+        </div>
+
+        <div class="field">
+          <label>Browser audio</label>
+          <div class="hint-line">Fallback preview als MIDI niet actief is</div>
+        </div>
+      </section>
+    </section>
+
+    <section class="card status-bar">
+      <div id="statusText">Klaar</div>
+      <div id="cursorInfo">Step 1 · C4</div>
+    </section>
+
+    <section class="card sequencer-wrap">
+      <div class="grid-header" id="gridHeader"></div>
+      <div class="grid-wrap">
+        <div class="note-labels" id="noteLabels"></div>
+        <div class="grid" id="grid"></div>
+      </div>
+    </section>
+
+    <section class="card keyboard-wrap">
+      <div class="keyboard-title">Live toetsen / note input</div>
+      <div class="piano-keys" id="pianoKeys"></div>
+      <div class="keyboard-help">
+        Klik op een toets om de geselecteerde step die noot te geven.
+        Nogmaals op dezelfde step/noot = uit.
+      </div>
+    </section>
+  </div>
+
+  <script src="fm-prototype.js"></script>
+</body>
+</html>
