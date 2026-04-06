@@ -2,126 +2,134 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Volca FM Prototype</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="fm-prototype.css" />
 </head>
-<body>
+<body class="fm-prototype-page">
+  <div class="app-shell fm-shell">
+    <section class="card topbar fm-topbar">
+      <div class="fm-title-block">
+        <h1>Volca FM Prototype</h1>
+        <p class="sub">
+          Twee modi: Step en Live. In Step programmeer je noten per step
+          (max 3 per kolom). In Live speel je melodisch via toetsenbord of piano.
+        </p>
+      </div>
 
-<div class="app-shell">
+      <div class="topbar-actions fm-actions">
+        <button id="playBtn" class="accent" type="button">Play</button>
+        <button id="stopBtn" class="secondary" type="button">Stop</button>
+        <button id="clearBtn" class="secondary" type="button">Clear</button>
+        <button id="saveBtn" class="secondary" type="button">Save</button>
+        <button id="loadBtn" class="secondary" type="button">Load</button>
+      </div>
+    </section>
 
-  <!-- TOPBAR (zelfde stijl als drum) -->
-  <div class="card topbar">
-    <div>
-      <h1>Volca FM Prototype</h1>
-      <p class="sub">
-        Twee modi: Step en Live. In Step programmeer je noten per step (max 3 per kolom).
-        In Live speel je via het toetsenbord zonder direct steps te wijzigen.
-      </p>
-    </div>
+    <section class="fm-panels">
+      <section class="card fm-panel">
+        <div class="fm-panel-title">Sequencer</div>
 
-    <div class="top-actions">
-      <button id="playBtn" class="accent">Play</button>
-      <button id="stopBtn">Stop</button>
-      <button id="clearBtn">Clear</button>
-      <button id="saveBtn">Save</button>
-      <button id="loadBtn">Load</button>
-    </div>
+        <div class="fm-fields">
+          <div class="field">
+            <label for="modeSelect">Mode</label>
+            <select id="modeSelect">
+              <option value="step">Step</option>
+              <option value="live">Live</option>
+            </select>
+          </div>
+
+          <div class="field small">
+            <label for="tempoInput">BPM</label>
+            <input id="tempoInput" type="number" min="40" max="240" value="132" />
+          </div>
+
+          <div class="field small">
+            <label for="stepCountSelect">Steps</label>
+            <select id="stepCountSelect">
+              <option value="8">8</option>
+              <option value="16" selected>16</option>
+              <option value="32">32</option>
+            </select>
+          </div>
+
+          <div class="field small">
+            <label for="gateInput">Gate %</label>
+            <input id="gateInput" type="number" min="5" max="95" value="70" />
+          </div>
+
+          <div class="field small">
+            <label for="octaveShift">Octaaf</label>
+            <select id="octaveShift">
+              <option value="-12">-1</option>
+              <option value="0" selected>0</option>
+              <option value="12">+1</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="card fm-panel">
+        <div class="fm-panel-title">MIDI</div>
+
+        <div class="fm-fields midi-fields">
+          <label class="field field-checkbox" for="midiEnable">
+            <span>MIDI</span>
+            <input id="midiEnable" type="checkbox" checked />
+          </label>
+
+          <div class="field">
+            <label for="midiOutputSelect">Output</label>
+            <select id="midiOutputSelect">
+              <option value="">Geen output</option>
+            </select>
+          </div>
+
+          <div class="field small">
+            <label for="midiChannelSelect">Kanaal</label>
+            <select id="midiChannelSelect"></select>
+          </div>
+
+          <div class="field field-info">
+            <label>Info</label>
+            <div class="hint-line" id="modeHint">
+              Step mode: klik noten in het grid om steps op te bouwen.
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section class="card status-bar fm-status-bar">
+      <div id="statusText">Klaar</div>
+      <div id="cursorInfo">Step 1 · leeg</div>
+    </section>
+
+    <section class="card sequencer-wrap fm-sequencer-wrap">
+      <div class="grid-header" id="gridHeader"></div>
+
+      <div class="grid-wrap">
+        <div class="note-labels" id="noteLabels"></div>
+        <div class="grid" id="grid"></div>
+      </div>
+    </section>
+
+    <section class="card keyboard-wrap fm-keyboard-wrap">
+      <div class="keyboard-header">
+        <div class="keyboard-title">Live Keyboard</div>
+        <div class="keyboard-help">
+          Gebruik Z-M en Q-U op je toetsenbord, of klik op de piano.
+        </div>
+      </div>
+
+      <div class="piano-stage">
+        <div class="piano-row piano-row-white" id="pianoWhiteKeys"></div>
+        <div class="piano-row piano-row-black" id="pianoBlackKeys"></div>
+      </div>
+    </section>
   </div>
 
-  <!-- CONTROL PANEL -->
-  <div class="panel-row">
-    <div class="card controls">
-
-      <div class="field">
-        <label>Mode</label>
-        <select id="modeSelect">
-          <option value="step">Step</option>
-          <option value="live">Live</option>
-        </select>
-      </div>
-
-      <div class="field small">
-        <label>BPM</label>
-        <input id="tempoInput" type="number" value="132" />
-      </div>
-
-      <div class="field small">
-        <label>Steps</label>
-        <select id="stepCountSelect">
-          <option>8</option>
-          <option selected>16</option>
-          <option>32</option>
-        </select>
-      </div>
-
-      <div class="field small">
-        <label>Gate %</label>
-        <input id="gateInput" type="number" value="70" />
-      </div>
-
-      <div class="field small">
-        <label>Octaaf</label>
-        <select id="octaveShift">
-          <option value="-12">-1</option>
-          <option value="0" selected>0</option>
-          <option value="12">+1</option>
-        </select>
-      </div>
-
-    </div>
-
-    <div class="card midi-panel">
-
-      <div class="field">
-        <label>MIDI</label>
-        <input type="checkbox" id="midiEnable" checked />
-      </div>
-
-      <div class="field">
-        <label>Output</label>
-        <select id="midiOutputSelect"></select>
-      </div>
-
-      <div class="field small">
-        <label>Kanaal</label>
-        <select id="midiChannelSelect"></select>
-      </div>
-
-      <div class="hint-line" id="modeHint"></div>
-
-    </div>
-  </div>
-
-  <!-- STATUS -->
-  <div class="card status-bar">
-    <div id="statusText">Klaar</div>
-    <div id="cursorInfo"></div>
-  </div>
-
-  <!-- SEQUENCER -->
-  <div class="card sequencer-wrap">
-    <div id="gridHeader" class="grid-header"></div>
-
-    <div class="grid-wrap">
-      <div id="noteLabels" class="note-labels"></div>
-      <div id="grid" class="grid"></div>
-    </div>
-  </div>
-
-  <!-- LIVE PIANO -->
-  <div class="card piano-wrap">
-    <div class="piano-title">Live Keyboard</div>
-
-    <div id="piano" class="piano"></div>
-
-    <div class="keyboard-help">
-      Gebruik toetsenbord (Z-M / Q-U) of klik op toetsen
-    </div>
-  </div>
-
-</div>
-
-<script src="fm-prototype.js"></script>
+  <script src="fm-prototype.js"></script>
 </body>
 </html>

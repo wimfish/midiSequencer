@@ -41,8 +41,36 @@ const KEYBOARD_MAP = [
   { key: "u", midi: 71, label: "B4", octaveGroup: 1 }
 ];
 
+const PIANO_LAYOUT = [
+  { midi: 48, kind: "white", leftIndex: 0 },
+  { midi: 49, kind: "black", leftIndex: 0 },
+  { midi: 50, kind: "white", leftIndex: 1 },
+  { midi: 51, kind: "black", leftIndex: 1 },
+  { midi: 52, kind: "white", leftIndex: 2 },
+  { midi: 53, kind: "white", leftIndex: 3 },
+  { midi: 54, kind: "black", leftIndex: 3 },
+  { midi: 55, kind: "white", leftIndex: 4 },
+  { midi: 56, kind: "black", leftIndex: 4 },
+  { midi: 57, kind: "white", leftIndex: 5 },
+  { midi: 58, kind: "black", leftIndex: 5 },
+  { midi: 59, kind: "white", leftIndex: 6 },
+
+  { midi: 60, kind: "white", leftIndex: 7 },
+  { midi: 61, kind: "black", leftIndex: 7 },
+  { midi: 62, kind: "white", leftIndex: 8 },
+  { midi: 63, kind: "black", leftIndex: 8 },
+  { midi: 64, kind: "white", leftIndex: 9 },
+  { midi: 65, kind: "white", leftIndex: 10 },
+  { midi: 66, kind: "black", leftIndex: 10 },
+  { midi: 67, kind: "white", leftIndex: 11 },
+  { midi: 68, kind: "black", leftIndex: 11 },
+  { midi: 69, kind: "white", leftIndex: 12 },
+  { midi: 70, kind: "black", leftIndex: 12 },
+  { midi: 71, kind: "white", leftIndex: 13 }
+];
+
 const KEY_TO_MIDI = Object.fromEntries(KEYBOARD_MAP.map(item => [item.key, item.midi]));
-const STORAGE_KEY = "volca-fm-prototype-v6";
+const STORAGE_KEY = "volca-fm-prototype-v7";
 const MAX_NOTES_PER_STEP = 3;
 
 const state = {
@@ -86,8 +114,9 @@ const els = {
   gridHeader: document.getElementById("gridHeader"),
   noteLabels: document.getElementById("noteLabels"),
   grid: document.getElementById("grid"),
-  pianoKeys: document.getElementById("pianoKeys"),
-  modeHint: document.getElementById("modeHint")
+  modeHint: document.getElementById("modeHint"),
+  pianoWhiteKeys: document.getElementById("pianoWhiteKeys"),
+  pianoBlackKeys: document.getElementById("pianoBlackKeys")
 };
 
 function setStatus(text) {
@@ -115,11 +144,10 @@ function getVisibleRows() {
 }
 
 function updateGridScale() {
-
   const totalWidth = window.innerWidth;
   const available = Math.min(1340, Math.max(720, totalWidth - 90));
 
-  const labelWidth = state.steps >= 32 ? 62 : 72;
+  const labelWidth = state.steps >= 32 ? 62 : 74;
   const gap = state.steps >= 32 ? 3 : 4;
   const minStep = state.steps >= 32 ? 22 : state.steps >= 24 ? 28 : 44;
   const computedStep = Math.floor((available - labelWidth - 8 - (gap * (state.steps - 1))) / state.steps);
@@ -161,6 +189,7 @@ function getCellKey(stepIndex, midiNote) {
 function flashDenied(stepIndex, midiNote) {
   state.deniedCellKey = getCellKey(stepIndex, midiNote);
   render();
+
   window.setTimeout(() => {
     if (state.deniedCellKey === getCellKey(stepIndex, midiNote)) {
       state.deniedCellKey = null;
@@ -192,20 +221,7 @@ function toggleNoteInStep(stepIndex, midiNote) {
 }
 
 function toggleCurrentCell() {
-  const midiNote = getCursorMidi();
-  toggleNoteInStep(state.cursorStep, midiNote);
-}
-
-function toggleStepOnOff(stepIndex) {
-  const current = getStepNotes(stepIndex);
-  if (current.length) {
-    setStepNotes(stepIndex, []);
-    setStatus(`Step ${stepIndex + 1} uit`);
-  } else {
-    setStepNotes(stepIndex, [60 + Number(state.octaveShift)]);
-    setStatus(`Step ${stepIndex + 1} aan`);
-  }
-  render();
+  toggleNoteInStep(state.cursorStep, getCursorMidi());
 }
 
 function clearPattern() {
@@ -237,7 +253,7 @@ function updateCursorInfo() {
 function updateModeHint() {
   els.modeHint.textContent =
     state.mode === "step"
-      ? "Step mode: beweeg met pijltjes door het grid en activeer met Enter of muisklik."
+      ? "Step mode: klik noten in het grid of op de piano om steps op te bouwen."
       : "Live mode: toetsen spelen alleen live noten en wijzigen de sequencer niet.";
 }
 
@@ -248,6 +264,7 @@ function applyModeClass() {
 
 function buildHeader() {
   els.gridHeader.innerHTML = "";
+
   for (let i = 0; i < state.steps; i += 1) {
     const hasData = getStepNotes(i).length > 0;
     const el = document.createElement("div");
@@ -310,52 +327,48 @@ function renderGrid() {
   });
 }
 
-function renderPianoKeys() {
-  els.pianoKeys.innerHTML = "";
+function midiInDisplayRange(midi) {
+  const shifted = midi + Number(state.octaveShift);
+  return shifted >= 36 && shifted <= 96;
+}
 
-  const row0 = KEYBOARD_MAP.filter(item => item.octaveGroup === 0);
-  const row1 = KEYBOARD_MAP.filter(item => item.octaveGroup === 1);
+function buildPiano() {
+  els.pianoWhiteKeys.innerHTML = "";
+  els.pianoBlackKeys.innerHTML = "";
 
-  [row0, row1].forEach((group) => {
-    const rowWrap = document.createElement("div");
-    rowWrap.className = "piano-row";
+  const whiteWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--white-key-width")) || 56;
 
-    group.forEach((item) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      const black = item.label.includes("#");
-      btn.className = `piano-key${black ? " black" : ""}`;
-      btn.dataset.key = item.key;
+  PIANO_LAYOUT.forEach((item) => {
+    const shiftedMidi = item.midi + Number(state.octaveShift);
+    if (!midiInDisplayRange(item.midi)) return;
 
-      const midi = clamp(item.midi + Number(state.octaveShift), 36, 96);
-      const liveLabel = noteNameFromMidi(midi);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `piano-key ${item.kind}`;
+    btn.dataset.midi = String(shiftedMidi);
 
-      const note = document.createElement("div");
-      note.className = "note";
-      note.textContent = liveLabel;
+    const label = document.createElement("span");
+    label.className = "piano-key-label";
+    label.textContent = noteNameFromMidi(shiftedMidi);
 
-      const keybind = document.createElement("div");
-      keybind.className = "keybind";
-      keybind.textContent = `${item.key.toUpperCase()} = ${liveLabel}`;
+    btn.appendChild(label);
 
-      btn.appendChild(note);
-      btn.appendChild(keybind);
-
-      btn.addEventListener("click", () => {
-        if (state.mode === "step") {
-          toggleNoteInStep(state.cursorStep, midi);
-        } else {
-          previewChord([midi], 112, 180);
-          setStatus(`Live: ${noteNameFromMidi(midi)}`);
-        }
-
-        flashPianoKey(item.key);
-      });
-
-      rowWrap.appendChild(btn);
+    btn.addEventListener("click", () => {
+      if (state.mode === "step") {
+        toggleNoteInStep(state.cursorStep, shiftedMidi);
+      } else {
+        previewChord([shiftedMidi], 112, 180);
+        setStatus(`Live: ${noteNameFromMidi(shiftedMidi)}`);
+      }
+      flashPianoMidi(shiftedMidi);
     });
 
-    els.pianoKeys.appendChild(rowWrap);
+    if (item.kind === "white") {
+      els.pianoWhiteKeys.appendChild(btn);
+    } else {
+      btn.style.left = `${(item.leftIndex + 1) * whiteWidth - (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--black-key-width")) || 34) / 2}px`;
+      els.pianoBlackKeys.appendChild(btn);
+    }
   });
 }
 
@@ -365,8 +378,7 @@ function render() {
   buildHeader();
   buildLabels();
   renderGrid();
-  renderPianoKeys();
-  buildPiano();	
+  buildPiano();
   updateCursorInfo();
   updateModeHint();
 }
@@ -501,12 +513,14 @@ function savePattern() {
     cursorStep: state.cursorStep,
     cursorRow: state.cursorRow
   };
+
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   setStatus("Prototype opgeslagen");
 }
 
 function loadPattern() {
   const raw = localStorage.getItem(STORAGE_KEY);
+
   if (!raw) {
     setStatus("Geen opgeslagen pattern gevonden");
     return;
@@ -601,8 +615,8 @@ function moveCursorRow(delta) {
   render();
 }
 
-function flashPianoKey(key) {
-  const btn = els.pianoKeys.querySelector(`[data-key="${key}"]`);
+function flashPianoMidi(midi) {
+  const btn = document.querySelector(`.piano-key[data-midi="${midi}"]`);
   if (!btn) return;
   btn.classList.add("active");
   window.setTimeout(() => btn.classList.remove("active"), 140);
@@ -621,7 +635,7 @@ function handleMappedKey(lower) {
     setStatus(`Live: ${noteNameFromMidi(midi)}`);
   }
 
-  flashPianoKey(lower);
+  flashPianoMidi(midi);
   return true;
 }
 
@@ -737,44 +751,14 @@ function bindEvents() {
 
     if (state.mode === "step" && event.key === "Backspace") {
       event.preventDefault();
-      toggleStepOnOff(state.cursorStep);
-      return;
+      setStepNotes(state.cursorStep, []);
+      setStatus(`Step ${state.cursorStep + 1} gewist`);
+      render();
     }
   });
 
   document.addEventListener("keyup", (event) => {
     state.heldKeys.delete(event.key.toLowerCase());
-  });
-}
-
-function buildPiano() {
-  const piano = document.getElementById("piano");
-  piano.innerHTML = "";
-
-  const notes = [
-    { n: 60, black: false }, // C
-    { n: 61, black: true },
-    { n: 62, black: false },
-    { n: 63, black: true },
-    { n: 64, black: false },
-    { n: 65, black: false },
-    { n: 66, black: true },
-    { n: 67, black: false },
-    { n: 68, black: true },
-    { n: 69, black: false },
-    { n: 70, black: true },
-    { n: 71, black: false }
-  ];
-
-  notes.forEach(note => {
-    const key = document.createElement("div");
-    key.className = "piano-key" + (note.black ? " black" : "");
-
-    key.addEventListener("click", () => {
-      previewChord([note.n], 110, 200);
-    });
-
-    piano.appendChild(key);
   });
 }
 
