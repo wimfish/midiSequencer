@@ -241,6 +241,11 @@ function updateModeHint() {
       : "Live mode: toetsen spelen alleen live noten en wijzigen de sequencer niet.";
 }
 
+function applyModeClass() {
+  document.body.classList.toggle("mode-step", state.mode === "step");
+  document.body.classList.toggle("mode-live", state.mode === "live");
+}
+
 function buildHeader() {
   els.gridHeader.innerHTML = "";
   for (let i = 0; i < state.steps; i += 1) {
@@ -258,8 +263,7 @@ function buildLabels() {
 
   rows.forEach((row) => {
     const el = document.createElement("div");
-    const root = row.name.startsWith("C") || row.name.startsWith("F");
-    el.className = `note-label${root ? " root" : ""}`;
+    el.className = "note-label";
     el.textContent = row.name;
     els.noteLabels.appendChild(el);
   });
@@ -356,6 +360,7 @@ function renderPianoKeys() {
 }
 
 function render() {
+  applyModeClass();
   updateGridScale();
   buildHeader();
   buildLabels();
@@ -575,6 +580,7 @@ function populateMidiOutputs() {
 }
 
 function populateChannels() {
+  els.midiChannelSelect.innerHTML = "";
   for (let i = 1; i <= 16; i += 1) {
     const option = document.createElement("option");
     option.value = String(i);
