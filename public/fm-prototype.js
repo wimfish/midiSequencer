@@ -14,31 +14,31 @@ const BASE_NOTE_ROWS = [
 ];
 
 const KEYBOARD_MAP = [
-  { key: "z", midi: 48, label: "C3", octaveGroup: 0 },
-  { key: "s", midi: 49, label: "C#3", octaveGroup: 0 },
-  { key: "x", midi: 50, label: "D3", octaveGroup: 0 },
-  { key: "d", midi: 51, label: "D#3", octaveGroup: 0 },
-  { key: "c", midi: 52, label: "E3", octaveGroup: 0 },
-  { key: "v", midi: 53, label: "F3", octaveGroup: 0 },
-  { key: "g", midi: 54, label: "F#3", octaveGroup: 0 },
-  { key: "b", midi: 55, label: "G3", octaveGroup: 0 },
-  { key: "h", midi: 56, label: "G#3", octaveGroup: 0 },
-  { key: "n", midi: 57, label: "A3", octaveGroup: 0 },
-  { key: "j", midi: 58, label: "A#3", octaveGroup: 0 },
-  { key: "m", midi: 59, label: "B3", octaveGroup: 0 },
+  { key: "z", midi: 48, label: "C3" },
+  { key: "s", midi: 49, label: "C#3" },
+  { key: "x", midi: 50, label: "D3" },
+  { key: "d", midi: 51, label: "D#3" },
+  { key: "c", midi: 52, label: "E3" },
+  { key: "v", midi: 53, label: "F3" },
+  { key: "g", midi: 54, label: "F#3" },
+  { key: "b", midi: 55, label: "G3" },
+  { key: "h", midi: 56, label: "G#3" },
+  { key: "n", midi: 57, label: "A3" },
+  { key: "j", midi: 58, label: "A#3" },
+  { key: "m", midi: 59, label: "B3" },
 
-  { key: "q", midi: 60, label: "C4", octaveGroup: 1 },
-  { key: "2", midi: 61, label: "C#4", octaveGroup: 1 },
-  { key: "w", midi: 62, label: "D4", octaveGroup: 1 },
-  { key: "3", midi: 63, label: "D#4", octaveGroup: 1 },
-  { key: "e", midi: 64, label: "E4", octaveGroup: 1 },
-  { key: "r", midi: 65, label: "F4", octaveGroup: 1 },
-  { key: "5", midi: 66, label: "F#4", octaveGroup: 1 },
-  { key: "t", midi: 67, label: "G4", octaveGroup: 1 },
-  { key: "6", midi: 68, label: "G#4", octaveGroup: 1 },
-  { key: "y", midi: 69, label: "A4", octaveGroup: 1 },
-  { key: "7", midi: 70, label: "A#4", octaveGroup: 1 },
-  { key: "u", midi: 71, label: "B4", octaveGroup: 1 }
+  { key: "q", midi: 60, label: "C4" },
+  { key: "2", midi: 61, label: "C#4" },
+  { key: "w", midi: 62, label: "D4" },
+  { key: "3", midi: 63, label: "D#4" },
+  { key: "e", midi: 64, label: "E4" },
+  { key: "r", midi: 65, label: "F4" },
+  { key: "5", midi: 66, label: "F#4" },
+  { key: "t", midi: 67, label: "G4" },
+  { key: "6", midi: 68, label: "G#4" },
+  { key: "y", midi: 69, label: "A4" },
+  { key: "7", midi: 70, label: "A#4" },
+  { key: "u", midi: 71, label: "B4" }
 ];
 
 const PIANO_LAYOUT = [
@@ -69,8 +69,9 @@ const PIANO_LAYOUT = [
   { midi: 71, kind: "white", leftIndex: 13 }
 ];
 
-const KEY_TO_MIDI = Object.fromEntries(KEYBOARD_MAP.map(item => [item.key, item.midi]));
-const STORAGE_KEY = "volca-fm-prototype-v8";
+const KEY_TO_MIDI = Object.fromEntries(KEYBOARD_MAP.map((item) => [item.key, item.midi]));
+const MIDI_TO_KEY = Object.fromEntries(KEYBOARD_MAP.map((item) => [item.midi, item.key.toUpperCase()]));
+const STORAGE_KEY = "volca-fm-prototype-v9";
 const MAX_NOTES_PER_STEP = 3;
 
 const state = {
@@ -92,7 +93,8 @@ const state = {
   timerId: null,
   audioContext: null,
   heldKeys: new Set(),
-  deniedCellKey: null
+  deniedCellKey: null,
+  settingsOpen: true
 };
 
 const els = {
@@ -101,6 +103,7 @@ const els = {
   clearBtn: document.getElementById("clearBtn"),
   saveBtn: document.getElementById("saveBtn"),
   loadBtn: document.getElementById("loadBtn"),
+  toggleSettingsBtn: document.getElementById("toggleSettingsBtn"),
   modeSelect: document.getElementById("modeSelect"),
   tempoInput: document.getElementById("tempoInput"),
   stepCountSelect: document.getElementById("stepCountSelect"),
@@ -111,16 +114,22 @@ const els = {
   midiChannelSelect: document.getElementById("midiChannelSelect"),
   statusText: document.getElementById("statusText"),
   cursorInfo: document.getElementById("cursorInfo"),
+  statusDisplay: document.getElementById("statusDisplay"),
   gridHeader: document.getElementById("gridHeader"),
   noteLabels: document.getElementById("noteLabels"),
   grid: document.getElementById("grid"),
   modeHint: document.getElementById("modeHint"),
   pianoWhiteKeys: document.getElementById("pianoWhiteKeys"),
-  pianoBlackKeys: document.getElementById("pianoBlackKeys")
+  pianoBlackKeys: document.getElementById("pianoBlackKeys"),
+  controlsPanel: document.querySelector(".fm-controls-panel")
 };
 
 function setStatus(text) {
   els.statusText.textContent = text;
+}
+
+function setDisplay(text) {
+  els.statusDisplay.textContent = text;
 }
 
 function clamp(value, min, max) {
@@ -144,20 +153,28 @@ function getVisibleRows() {
 }
 
 function updateGridScale() {
-  const totalWidth = window.innerWidth;
-  const available = Math.min(1360, Math.max(720, totalWidth - 110));
+  const width = window.innerWidth;
+  let stepSize = 58;
+  let rowHeight = 40;
+  let labelWidth = 82;
+  let gap = 5;
 
-  const labelWidth = state.steps >= 32 ? 64 : 74;
-  const gap = state.steps >= 32 ? 3 : 4;
-  const minStep = state.steps >= 32 ? 22 : state.steps >= 24 ? 28 : 44;
-  const computedStep = Math.floor((available - labelWidth - 12 - (gap * (state.steps - 1))) / state.steps);
-  const stepSize = clamp(computedStep, minStep, 44);
-  const rowHeight = stepSize >= 40 ? 34 : stepSize >= 30 ? 30 : 26;
+  if (state.steps >= 32) {
+    stepSize = width < 900 ? 24 : 30;
+    rowHeight = width < 900 ? 24 : 28;
+    labelWidth = width < 900 ? 60 : 68;
+    gap = 3;
+  } else if (state.steps >= 16) {
+    stepSize = width < 900 ? 38 : 58;
+    rowHeight = width < 900 ? 30 : 40;
+    labelWidth = width < 900 ? 64 : 82;
+    gap = width < 900 ? 4 : 5;
+  }
 
-  document.documentElement.style.setProperty("--fm-label-width", `${labelWidth}px`);
-  document.documentElement.style.setProperty("--fm-grid-gap", `${gap}px`);
   document.documentElement.style.setProperty("--fm-step-size", `${stepSize}px`);
   document.documentElement.style.setProperty("--fm-row-height", `${rowHeight}px`);
+  document.documentElement.style.setProperty("--fm-label-width", `${labelWidth}px`);
+  document.documentElement.style.setProperty("--fm-grid-gap", `${gap}px`);
 }
 
 function normalizeStep(step) {
@@ -204,6 +221,7 @@ function toggleNoteInStep(stepIndex, midiNote) {
   if (notes.includes(midiNote)) {
     setStepNotes(stepIndex, notes.filter((note) => note !== midiNote));
     setStatus(`Step ${stepIndex + 1} noot verwijderd: ${noteNameFromMidi(midiNote)}`);
+    setDisplay(`NOOT UIT: ${noteNameFromMidi(midiNote)}`);
     render();
     return true;
   }
@@ -211,11 +229,13 @@ function toggleNoteInStep(stepIndex, midiNote) {
   if (notes.length >= MAX_NOTES_PER_STEP) {
     flashDenied(stepIndex, midiNote);
     setStatus(`Step ${stepIndex + 1} zit al vol (max 3 noten)`);
+    setDisplay("MAX 3 NOTEN PER STEP");
     return false;
   }
 
   setStepNotes(stepIndex, [...notes, midiNote]);
   setStatus(`Step ${stepIndex + 1} + ${noteNameFromMidi(midiNote)}`);
+  setDisplay(`NOOT AAN: ${noteNameFromMidi(midiNote)}`);
   render();
   return true;
 }
@@ -231,6 +251,7 @@ function clearPattern() {
   state.cursorRow = BASE_NOTE_ROWS.findIndex((row) => row.midi === 60);
   render();
   setStatus("Pattern gewist");
+  setDisplay("PATTERN GEWIST");
 }
 
 function resizePattern(nextSteps) {
@@ -316,6 +337,7 @@ function renderGrid() {
         } else {
           previewChord([row.midi], 112, 180);
           setStatus(`Live: ${noteNameFromMidi(row.midi)}`);
+          setDisplay(`LIVE: ${noteNameFromMidi(row.midi)}`);
           render();
         }
       });
@@ -332,13 +354,25 @@ function midiInDisplayRange(midi) {
   return shifted >= 36 && shifted <= 96;
 }
 
+function buildPianoKeyLabelWrap(noteText, keyText) {
+  const note = document.createElement("span");
+  note.className = "piano-note-label";
+  note.textContent = noteText;
+
+  const keybind = document.createElement("span");
+  keybind.className = "piano-keybind-label";
+  keybind.textContent = keyText;
+
+  return { note, keybind };
+}
+
 function buildPiano() {
   els.pianoWhiteKeys.innerHTML = "";
   els.pianoBlackKeys.innerHTML = "";
 
   const rootStyle = getComputedStyle(document.documentElement);
-  const whiteWidth = parseFloat(rootStyle.getPropertyValue("--fm-white-key-width")) || 58;
-  const blackWidth = parseFloat(rootStyle.getPropertyValue("--fm-black-key-width")) || 34;
+  const whiteWidth = parseFloat(rootStyle.getPropertyValue("--fm-white-key-width")) || 68;
+  const blackWidth = parseFloat(rootStyle.getPropertyValue("--fm-black-key-width")) || 40;
 
   PIANO_LAYOUT.forEach((item) => {
     const shiftedMidi = item.midi + Number(state.octaveShift);
@@ -349,11 +383,11 @@ function buildPiano() {
     btn.className = `piano-key ${item.kind}`;
     btn.dataset.midi = String(shiftedMidi);
 
-    const label = document.createElement("span");
-    label.className = "piano-key-label";
-    label.textContent = noteNameFromMidi(shiftedMidi);
+    const keyText = MIDI_TO_KEY[item.midi] || "";
+    const labels = buildPianoKeyLabelWrap(noteNameFromMidi(shiftedMidi), keyText);
 
-    btn.appendChild(label);
+    btn.appendChild(labels.note);
+    btn.appendChild(labels.keybind);
 
     btn.addEventListener("click", () => {
       if (state.mode === "step") {
@@ -361,6 +395,7 @@ function buildPiano() {
       } else {
         previewChord([shiftedMidi], 112, 180);
         setStatus(`Live: ${noteNameFromMidi(shiftedMidi)}`);
+        setDisplay(`LIVE: ${noteNameFromMidi(shiftedMidi)}`);
       }
       flashPianoMidi(shiftedMidi);
     });
@@ -471,6 +506,7 @@ function playCurrentStep() {
   if (notes.length) {
     const duration = Math.max(40, Math.floor(stepDurationMs() * (state.gate / 100)));
     previewChord(notes, 112, duration);
+    setDisplay(`STEP ${state.currentStep + 1} SPEELT`);
   }
 
   state.currentStep = (state.currentStep + 1) % state.steps;
@@ -480,7 +516,9 @@ function startPlayback() {
   if (state.isPlaying) return;
   state.isPlaying = true;
   setStatus("Playback gestart");
+  setDisplay("PLAYBACK ACTIEF");
   playCurrentStep();
+
   state.timerId = window.setInterval(playCurrentStep, stepDurationMs());
   render();
 }
@@ -494,6 +532,7 @@ function stopPlayback() {
   state.currentStep = 0;
   render();
   setStatus("Playback gestopt");
+  setDisplay("PLAYBACK GESTOPT");
 }
 
 function restartPlaybackIfNeeded() {
@@ -518,6 +557,7 @@ function savePattern() {
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   setStatus("Prototype opgeslagen");
+  setDisplay("PATTERN OPGESLAGEN");
 }
 
 function loadPattern() {
@@ -525,6 +565,7 @@ function loadPattern() {
 
   if (!raw) {
     setStatus("Geen opgeslagen pattern gevonden");
+    setDisplay("GEEN SAVE GEVONDEN");
     return;
   }
 
@@ -550,8 +591,10 @@ function loadPattern() {
     updateGridScale();
     render();
     setStatus("Prototype geladen");
+    setDisplay("PATTERN GELADEN");
   } catch (error) {
     setStatus("Load fout");
+    setDisplay("LOAD FOUT");
     console.error(error);
   }
 }
@@ -559,6 +602,7 @@ function loadPattern() {
 async function initMidi() {
   if (!("requestMIDIAccess" in navigator)) {
     setStatus("Web MIDI niet beschikbaar, browser audio actief");
+    setDisplay("BROWSER AUDIO ACTIEF");
     return;
   }
 
@@ -573,8 +617,10 @@ async function initMidi() {
     };
 
     setStatus("MIDI klaar");
+    setDisplay("MIDI KLAAR");
   } catch (error) {
     setStatus("MIDI toestemming geweigerd");
+    setDisplay("MIDI GEWEIGERD");
     console.error(error);
   }
 }
@@ -635,10 +681,19 @@ function handleMappedKey(lower) {
   } else {
     previewChord([midi], 112, 180);
     setStatus(`Live: ${noteNameFromMidi(midi)}`);
+    setDisplay(`LIVE: ${noteNameFromMidi(midi)}`);
   }
 
   flashPianoMidi(midi);
   return true;
+}
+
+function toggleSettingsPanel() {
+  state.settingsOpen = !state.settingsOpen;
+  els.controlsPanel.style.display = state.settingsOpen ? "block" : "none";
+  els.toggleSettingsBtn.textContent = state.settingsOpen
+    ? "▲ INSTELLINGEN OMHOOG"
+    : "▼ INSTELLINGEN OMLAAG";
 }
 
 function bindEvents() {
@@ -651,11 +706,13 @@ function bindEvents() {
   els.clearBtn.addEventListener("click", clearPattern);
   els.saveBtn.addEventListener("click", savePattern);
   els.loadBtn.addEventListener("click", loadPattern);
+  els.toggleSettingsBtn.addEventListener("click", toggleSettingsPanel);
 
   els.modeSelect.addEventListener("change", () => {
     state.mode = els.modeSelect.value;
     render();
     setStatus(state.mode === "step" ? "Step mode actief" : "Live mode actief");
+    setDisplay(state.mode === "step" ? "STEP MODE ACTIEF" : "LIVE MODE ACTIEF");
   });
 
   els.tempoInput.addEventListener("change", () => {
@@ -682,16 +739,19 @@ function bindEvents() {
   els.midiEnable.addEventListener("change", () => {
     state.midiEnabled = els.midiEnable.checked;
     setStatus(state.midiEnabled ? "MIDI aan" : "MIDI uit, browser audio actief");
+    setDisplay(state.midiEnabled ? "MIDI AAN" : "MIDI UIT");
   });
 
   els.midiOutputSelect.addEventListener("change", () => {
     state.midiOutputId = els.midiOutputSelect.value;
     setStatus(state.midiOutputId ? "MIDI output gekozen" : "Geen MIDI output gekozen");
+    setDisplay(state.midiOutputId ? "OUTPUT GEKOZEN" : "GEEN OUTPUT");
   });
 
   els.midiChannelSelect.addEventListener("change", () => {
     state.midiChannel = Number(els.midiChannelSelect.value) || 1;
     setStatus(`MIDI kanaal ${state.midiChannel}`);
+    setDisplay(`KANAAL ${state.midiChannel}`);
   });
 
   window.addEventListener("resize", () => {
@@ -755,6 +815,7 @@ function bindEvents() {
       event.preventDefault();
       setStepNotes(state.cursorStep, []);
       setStatus(`Step ${state.cursorStep + 1} gewist`);
+      setDisplay(`STEP ${state.cursorStep + 1} GEWIST`);
       render();
     }
   });
