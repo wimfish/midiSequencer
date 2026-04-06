@@ -9,6 +9,7 @@
   --accent: #7dd3fc;
   --accent-2: #f9c74f;
   --active: #69f0ae;
+  --danger: #ff6b6b;
   --shadow: 0 14px 40px rgba(0, 0, 0, 0.25);
   --radius: 18px;
   --step-size: 44px;
@@ -178,6 +179,14 @@ button.secondary {
   border-radius: 10px;
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.header-step.has-data {
+  background: rgba(105,240,174,0.20);
+  border-color: rgba(105,240,174,0.55);
+  color: var(--active);
+  font-weight: 700;
 }
 
 .header-step.current {
@@ -256,20 +265,11 @@ button.secondary {
   border-color: rgba(105,240,174,0.55);
 }
 
-.cell .stack {
-  display: flex;
-  gap: 3px;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  padding: 2px;
-}
-
-.cell .dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: rgba(9, 20, 13, 0.88);
+.cell.flash-denied {
+  background:
+    linear-gradient(180deg, rgba(255,107,107,0.32), rgba(255,107,107,0.15));
+  border-color: rgba(255,107,107,0.70);
+  box-shadow: 0 0 0 1px rgba(255,107,107,0.16), 0 0 14px rgba(255,107,107,0.16);
 }
 
 .keyboard-wrap {

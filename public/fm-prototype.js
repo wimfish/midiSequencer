@@ -41,7 +41,7 @@ const KEYBOARD_MAP = [
 ];
 
 const KEY_TO_MIDI = Object.fromEntries(KEYBOARD_MAP.map(item => [item.key, item.midi]));
-const STORAGE_KEY = "volca-fm-prototype-v3";
+const STORAGE_KEY = "volca-fm-prototype-v4";
 const MAX_NOTES_PER_STEP = 3;
 
 const state = {
@@ -53,6 +53,7 @@ const state = {
   isPlaying: false,
   currentStep: 0,
   cursorStep: 0,
+  cursorRow: NOTE_ROWS.findIndex(row => row.midi === 60),
   pattern: Array.from({ length: 16 }, () => []),
   midiEnabled: true,
   midiAccess: null,
@@ -61,7 +62,8 @@ const state = {
   midiChannel: 1,
   timerId: null,
   audioContext: null,
-  heldKeys: new Set()
+  heldKeys: new Set(),
+  deniedCellKey: null
 };
 
 const els = {
@@ -119,22 +121,50 @@ function setStepNotes(stepIndex, notes) {
   state.pattern[stepIndex] = normalizeStep(notes);
 }
 
-function addNoteToStep(stepIndex, midiNote) {
+function getCursorMidi() {
+  return NOTE_ROWS[state.cursorRow].midi + Number(state.octaveShift);
+}
+
+function getCellKey(stepIndex, midiNote) {
+  return `${stepIndex}:${midiNote}`;
+}
+
+function flashDenied(stepIndex, midiNote) {
+  state.deniedCellKey = getCellKey(stepIndex, midiNote);
+  render();
+  window.setTimeout(() => {
+    if (state.deniedCellKey === getCellKey(stepIndex, midiNote)) {
+      state.deniedCellKey = null;
+      render();
+    }
+  }, 180);
+}
+
+function toggleNoteInStep(stepIndex, midiNote) {
   const notes = getStepNotes(stepIndex);
 
   if (notes.includes(midiNote)) {
     setStepNotes(stepIndex, notes.filter(note => note !== midiNote));
     setStatus(`Step ${stepIndex + 1} noot verwijderd: ${noteNameFromMidi(midiNote)}`);
-  } else {
-    const next = [...notes, midiNote];
-    while (next.length > MAX_NOTES_PER_STEP) {
-      next.shift();
-    }
-    setStepNotes(stepIndex, next);
-    setStatus(`Step ${stepIndex + 1} + ${noteNameFromMidi(midiNote)}`);
+    render();
+    return true;
   }
 
+  if (notes.length >= MAX_NOTES_PER_STEP) {
+    flashDenied(stepIndex, midiNote);
+    setStatus(`Step ${stepIndex + 1} zit al vol (max 3 noten)`);
+    return false;
+  }
+
+  setStepNotes(stepIndex, [...notes, midiNote]);
+  setStatus(`Step ${stepIndex + 1} + ${noteNameFromMidi(midiNote)}`);
   render();
+  return true;
+}
+
+function toggleCurrentCell() {
+  const midiNote = getCursorMidi();
+  toggleNoteInStep(state.cursorStep, midiNote);
 }
 
 function toggleStepOnOff(stepIndex) {
@@ -171,6 +201,7 @@ function clearPattern() {
   state.pattern = createEmptyPattern(state.steps);
   state.currentStep = 0;
   state.cursorStep = 0;
+  state.cursorRow = NOTE_ROWS.findIndex(row => row.midi === 60);
   render();
   setStatus("Pattern gewist");
 }
@@ -186,21 +217,24 @@ function resizePattern(nextSteps) {
 
 function updateCursorInfo() {
   const notes = getStepNotes(state.cursorStep);
-  els.cursorInfo.textContent = `Step ${state.cursorStep + 1} · ${notes.length ? notes.map(noteNameFromMidi).join(" / ") : "leeg"}`;
+  const cursorNote = noteNameFromMidi(getCursorMidi());
+  els.cursorInfo.textContent =
+    `Step ${state.cursorStep + 1} · cursor ${cursorNote} · ${notes.length ? notes.map(noteNameFromMidi).join(" / ") : "leeg"}`;
 }
 
 function updateModeHint() {
   els.modeHint.textContent =
     state.mode === "step"
-      ? "Step mode: klik noten in het grid of gebruik toetsen om de geselecteerde step op te bouwen."
+      ? "Step mode: beweeg met pijltjes door het grid en activeer met Enter of muisklik."
       : "Live mode: toetsen spelen alleen live noten en wijzigen de sequencer niet.";
 }
 
 function buildHeader() {
   els.gridHeader.innerHTML = "";
   for (let i = 0; i < state.steps; i += 1) {
+    const hasData = getStepNotes(i).length > 0;
     const el = document.createElement("div");
-    el.className = `header-step${state.isPlaying && state.currentStep === i ? " current" : ""}`;
+    el.className = `header-step${hasData ? " has-data" : ""}${state.isPlaying && state.currentStep === i ? " current" : ""}`;
     el.textContent = i + 1;
     els.gridHeader.appendChild(el);
   }
@@ -220,9 +254,10 @@ function buildLabels() {
 function renderGrid() {
   els.grid.innerHTML = "";
 
-  NOTE_ROWS.forEach((row) => {
+  NOTE_ROWS.forEach((row, rowIndex) => {
     const rowEl = document.createElement("div");
     rowEl.className = "grid-row";
+
 
     for (let stepIndex = 0; stepIndex < state.steps; stepIndex += 1) {
       const cell = document.createElement("button");
@@ -231,28 +266,19 @@ function renderGrid() {
       const stepNotes = getStepNotes(stepIndex);
       const rowMidi = row.midi + Number(state.octaveShift);
       const isNoteHere = stepNotes.includes(rowMidi);
-      const isCursor = state.cursorStep === stepIndex;
+      const isCursor = state.cursorStep === stepIndex && state.cursorRow === rowIndex;
+      const isDenied = state.deniedCellKey === getCellKey(stepIndex, rowMidi);
 
-      cell.className = `cell${isCursor ? " cursor" : ""}${isNoteHere ? " has-note" : ""}`;
-
-      if (isNoteHere) {
-        const stack = document.createElement("div");
-        stack.className = "stack";
-
-        for (let i = 0; i < stepNotes.length; i += 1) {
-          const dot = document.createElement("span");
-          dot.className = "dot";
-          stack.appendChild(dot);
-        }
-
-        cell.appendChild(stack);
-      }
+      cell.className = `cell${isCursor ? " cursor" : ""}${isNoteHere ? " has-note" : ""}${isDenied ? " flash-denied" : ""}`;
+      cell.dataset.step = String(stepIndex);
+      cell.dataset.row = String(rowIndex);
 
       cell.addEventListener("click", () => {
         state.cursorStep = stepIndex;
+        state.cursorRow = rowIndex;
 
         if (state.mode === "step") {
-          addNoteToStep(stepIndex, rowMidi);
+          toggleCurrentCell();
         } else {
           previewChord([rowMidi], 112, 180);
           setStatus(`Live: ${noteNameFromMidi(rowMidi)}`);
@@ -292,7 +318,7 @@ function renderPianoKeys() {
       const midi = clamp(item.midi + Number(state.octaveShift), 36, 96);
 
       if (state.mode === "step") {
-        addNoteToStep(state.cursorStep, midi);
+        toggleNoteInStep(state.cursorStep, midi);
       } else {
         previewChord([midi], 112, 180);
         setStatus(`Live: ${noteNameFromMidi(midi)}`);
@@ -440,7 +466,9 @@ function savePattern() {
     gate: state.gate,
     octaveShift: state.octaveShift,
     pattern: state.pattern,
-    midiChannel: state.midiChannel
+    midiChannel: state.midiChannel,
+    cursorStep: state.cursorStep,
+    cursorRow: state.cursorRow
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   setStatus("Prototype opgeslagen");
@@ -462,6 +490,8 @@ function loadPattern() {
     state.octaveShift = Number(data.octaveShift) || 0;
     state.pattern = Array.from({ length: state.steps }, (_, i) => normalizeStep(data.pattern?.[i] || []));
     state.midiChannel = Number(data.midiChannel) || 1;
+    state.cursorStep = clamp(Number(data.cursorStep) || 0, 0, state.steps - 1);
+    state.cursorRow = clamp(Number(data.cursorRow) || 0, 0, NOTE_ROWS.length - 1);
 
     els.modeSelect.value = state.mode;
     els.stepCountSelect.value = String(state.steps);
@@ -470,7 +500,6 @@ function loadPattern() {
     els.octaveShift.value = String(state.octaveShift);
     els.midiChannelSelect.value = String(state.midiChannel);
 
-    state.cursorStep = clamp(state.cursorStep, 0, state.steps - 1);
     render();
     setStatus("Prototype geladen");
   } catch (error) {
@@ -529,8 +558,13 @@ function populateChannels() {
   els.midiChannelSelect.value = String(state.midiChannel);
 }
 
-function moveCursor(delta) {
+function moveCursorStep(delta) {
   state.cursorStep = (state.cursorStep + delta + state.steps) % state.steps;
+  render();
+}
+
+function moveCursorRow(delta) {
+  state.cursorRow = (state.cursorRow + delta + NOTE_ROWS.length) % NOTE_ROWS.length;
   render();
 }
 
@@ -548,7 +582,7 @@ function handleMappedKey(lower) {
   const midi = clamp(mapped + Number(state.octaveShift), 36, 96);
 
   if (state.mode === "step") {
-    addNoteToStep(state.cursorStep, midi);
+    toggleNoteInStep(state.cursorStep, midi);
   } else {
     previewChord([midi], 112, 180);
     setStatus(`Live: ${noteNameFromMidi(midi)}`);
@@ -635,31 +669,38 @@ function bindEvents() {
 
     if (event.key === "ArrowLeft") {
       event.preventDefault();
-      moveCursor(-1);
+      moveCursorStep(-1);
       return;
     }
 
     if (event.key === "ArrowRight") {
       event.preventDefault();
-      moveCursor(1);
+      moveCursorStep(1);
       return;
     }
 
     if (state.mode === "step" && event.key === "ArrowUp") {
       event.preventDefault();
-      transposeTopNote(state.cursorStep, 1);
+      moveCursorRow(-1);
       return;
     }
 
     if (state.mode === "step" && event.key === "ArrowDown") {
       event.preventDefault();
-      transposeTopNote(state.cursorStep, -1);
+      moveCursorRow(1);
       return;
     }
 
     if (state.mode === "step" && event.key === "Enter") {
       event.preventDefault();
+      toggleCurrentCell();
+      return;
+    }
+
+    if (state.mode === "step" && event.key === "Backspace") {
+      event.preventDefault();
       toggleStepOnOff(state.cursorStep);
+      return;
     }
   });
 
