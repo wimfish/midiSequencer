@@ -95,14 +95,15 @@ body.fm-prototype-page input {
 ========================================= */
 
 :root {
-  --fm-step-size: 42px;     /* breedte cel */
-  --fm-row-height: 24px;    /* hoogte cel */
+  --fm-step-size: 46px;
+  --fm-row-height: 30px;
   --fm-label-width: 72px;
   --fm-step-count: 16;
   --fm-row-count: 12;
-  --fm-grid-gap: 3px;
+  --fm-grid-gap: 4px;
 }
 
+/* sequencer blok */
 .fm-sequencer-card {
   overflow: hidden;
 }
@@ -114,60 +115,99 @@ body.fm-prototype-page input {
   align-items: center;
 }
 
-/* titel blijft links, grid zelf centreert */
 .fm-sequencer-card .fm-section-title {
   width: 100%;
   text-align: left;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
-/* header exact boven grid */
+/* drum-achtige step header */
 .grid-header {
   display: grid !important;
   grid-template-columns: repeat(var(--fm-step-count), var(--fm-step-size));
-  gap: var(--fm-grid-gap);
+  gap: 8px;
   width: max-content;
-  margin: 0 auto 8px;
-  padding-left: calc(var(--fm-label-width) + 10px);
+  margin: 0 auto 12px;
+  padding-left: calc(var(--fm-label-width) + 12px);
   box-sizing: content-box;
 }
 
-.header-step {
+.step-head {
   width: var(--fm-step-size);
-  height: 20px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  font-size: 0.9rem;
-  line-height: 1;
-  border-radius: 6px;
-  color: rgba(40, 28, 18, 0.92);
+  gap: 4px;
 }
 
-.header-step.current {
-  border: 1px solid #d9b970;
-  background: linear-gradient(180deg, #f2dfaa 0%, #d7ba6d 55%, #a98439 100%);
+.step-led {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #3e3428 0%, #1a140f 75%);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.4),
-    0 0 10px rgba(255,214,128,0.24);
-  color: #18120c;
+    inset 0 1px 1px rgba(255,255,255,0.08),
+    0 1px 2px rgba(0,0,0,0.35);
 }
 
-/* labels + grid als 1 blok */
+.step-head.has-data .step-led {
+  background: radial-gradient(circle at 35% 35%, #ffb087 0%, #ff5b2e 45%, #8a1408 100%);
+  box-shadow:
+    0 0 6px rgba(255, 95, 48, 0.55),
+    0 0 12px rgba(255, 95, 48, 0.2);
+}
+
+.step-head.current .step-led {
+  background: radial-gradient(circle at 35% 35%, #ffd8a0 0%, #ff7f3d 45%, #a81a08 100%);
+  box-shadow:
+    0 0 8px rgba(255, 120, 55, 0.75),
+    0 0 16px rgba(255, 120, 55, 0.3);
+}
+
+.step-head-btn {
+  width: 100%;
+  height: 32px;
+  border-radius: 7px;
+  border: 1px solid rgba(74, 61, 47, 0.9);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02) 30%, rgba(0,0,0,0.16)),
+    linear-gradient(180deg, #2b241f 0%, #12100e 100%);
+  color: #f1eadf;
+  font-size: 1rem;
+  line-height: 1;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 2px 4px rgba(0,0,0,0.28);
+}
+
+.step-head.cursor .step-head-btn {
+  border-color: #f0d08a;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.12),
+    0 0 0 2px rgba(240, 208, 138, 0.22);
+}
+
+.step-head.current .step-head-btn {
+  border-color: #f0d08a;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.05) 30%, rgba(0,0,0,0.12)),
+    linear-gradient(180deg, #403126 0%, #19140f 100%);
+}
+
+/* labels + grid */
 .grid-wrap {
   display: grid !important;
   grid-template-columns: var(--fm-label-width) max-content;
-  gap: 10px;
+  gap: 12px;
   align-items: start;
   width: max-content;
   max-width: 100%;
   margin: 0 auto;
   overflow-x: auto;
   overflow-y: hidden;
-  padding-bottom: 4px;
+  padding-bottom: 6px;
 }
 
-/* labels exact zelfde aantal rijen / hoogte */
 .note-labels {
   display: grid !important;
   grid-template-rows: repeat(var(--fm-row-count), var(--fm-row-height));
@@ -182,13 +222,13 @@ body.fm-prototype-page input {
   align-items: center;
   justify-content: flex-end;
   padding-right: 10px;
-  font-size: 0.92rem;
+  font-size: 1rem;
   line-height: 1;
   white-space: nowrap;
   box-sizing: border-box;
 }
 
-/* heel belangrijk: generic .grid uit styles/css overschrijven */
+/* grid rijen */
 body.fm-prototype-page .grid {
   display: flex !important;
   flex-direction: column !important;
@@ -203,14 +243,14 @@ body.fm-prototype-page .grid-row {
   gap: var(--fm-grid-gap);
 }
 
-/* rechthoekige cells */
+/* grotere rechthoekige cells zonder cijfers */
 body.fm-prototype-page .cell {
   width: var(--fm-step-size);
   height: var(--fm-row-height);
   min-width: var(--fm-step-size);
   min-height: var(--fm-row-height);
-  border-radius: 9px;
-  border: 1px solid rgba(115, 87, 51, 0.30);
+  border-radius: 8px;
+  border: 1px solid rgba(115, 87, 51, 0.32);
   background:
     linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.01) 34%, rgba(0,0,0,0.10)),
     linear-gradient(180deg, #2a2118 0%, #15120f 100%);
@@ -239,25 +279,27 @@ body.fm-prototype-page .cell.cursor {
 }
 
 body.fm-prototype-page .cell.flash-denied {
-  border-color: rgba(255, 90, 90, 0.9);
-  box-shadow: 0 0 12px rgba(255, 90, 90, 0.32);
+  border-color: rgba(255, 90, 90, 0.95);
+  box-shadow:
+    0 0 0 1px rgba(255, 90, 90, 0.22),
+    0 0 12px rgba(255, 90, 90, 0.35);
 }
 
-/* desktop: 16 en 32 steps beter passend */
+/* sizes per step count */
 @media (min-width: 1280px) {
   :root {
-    --fm-step-size: 44px;
-    --fm-row-height: 24px;
+    --fm-step-size: 46px;
+    --fm-row-height: 30px;
     --fm-label-width: 72px;
-    --fm-grid-gap: 3px;
+    --fm-grid-gap: 4px;
   }
 }
 
 @media (max-width: 1279px) {
   :root {
-    --fm-step-size: 36px;
-    --fm-row-height: 22px;
-    --fm-label-width: 64px;
+    --fm-step-size: 38px;
+    --fm-row-height: 26px;
+    --fm-label-width: 66px;
     --fm-grid-gap: 3px;
   }
 }
@@ -265,17 +307,18 @@ body.fm-prototype-page .cell.flash-denied {
 @media (max-width: 900px) {
   :root {
     --fm-step-size: 30px;
-    --fm-row-height: 20px;
+    --fm-row-height: 22px;
     --fm-label-width: 58px;
     --fm-grid-gap: 2px;
   }
 
-  .header-step {
-    font-size: 0.8rem;
+  .step-head-btn {
+    height: 28px;
+    font-size: 0.9rem;
   }
 
   .note-label {
-    font-size: 0.84rem;
+    font-size: 0.9rem;
   }
 }
 

@@ -154,26 +154,26 @@ function getVisibleRows() {
 
 function updateGridScale() {
   const width = window.innerWidth;
-  let stepSize = 44;
-  let rowHeight = 24;
+  let stepSize = 46;
+  let rowHeight = 30;
   let labelWidth = 72;
-  let gap = 3;
+  let gap = 4;
 
   if (state.steps >= 32) {
-    stepSize = width < 1400 ? 28 : 34;
-    rowHeight = width < 1400 ? 20 : 22;
-    labelWidth = width < 1400 ? 58 : 64;
+    stepSize = width < 1400 ? 24 : 30;
+    rowHeight = width < 1400 ? 20 : 24;
+    labelWidth = width < 1400 ? 56 : 64;
     gap = 2;
   } else if (state.steps >= 16) {
-    stepSize = width < 1400 ? 36 : 44;
-    rowHeight = width < 1400 ? 22 : 24;
+    stepSize = width < 1400 ? 38 : 46;
+    rowHeight = width < 1400 ? 26 : 30;
     labelWidth = width < 1400 ? 62 : 72;
     gap = 3;
   } else {
-    stepSize = width < 1400 ? 44 : 52;
-    rowHeight = width < 1400 ? 24 : 28;
-    labelWidth = width < 1400 ? 66 : 76;
-    gap = 3;
+    stepSize = width < 1400 ? 46 : 54;
+    rowHeight = width < 1400 ? 30 : 34;
+    labelWidth = width < 1400 ? 68 : 76;
+    gap = 4;
   }
 
   document.documentElement.style.setProperty("--fm-step-size", `${stepSize}px`);
@@ -295,10 +295,28 @@ function buildHeader() {
 
   for (let i = 0; i < state.steps; i += 1) {
     const hasData = getStepNotes(i).length > 0;
-    const el = document.createElement("div");
-    el.className = `header-step${hasData ? " has-data" : ""}${state.isPlaying && state.currentStep === i ? " current" : ""}`;
-    el.textContent = i + 1;
-    els.gridHeader.appendChild(el);
+    const isCurrent = state.isPlaying && state.currentStep === i;
+    const isCursor = !state.isPlaying && state.cursorStep === i;
+
+    const wrap = document.createElement("div");
+    wrap.className = `step-head${hasData ? " has-data" : ""}${isCurrent ? " current" : ""}${isCursor ? " cursor" : ""}`;
+
+    const led = document.createElement("span");
+    led.className = "step-led";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "step-head-btn";
+    btn.textContent = String(i + 1);
+
+    btn.addEventListener("click", () => {
+      state.cursorStep = i;
+      render();
+    });
+
+    wrap.appendChild(led);
+    wrap.appendChild(btn);
+    els.gridHeader.appendChild(wrap);
   }
 }
 

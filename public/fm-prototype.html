@@ -61,56 +61,56 @@
           </div>
         </section>
 
-        <section class="controls card fm-performance-controls">
-          <div class="field bpm-field">
-            <label for="tempoInput">BPM</label>
-            <input id="tempoInput" type="number" min="40" max="240" value="132" />
-          </div>
+		<section class="midi card fm-midi-panel">
+		  <div class="toggle-field">
+			<label for="midiEnable">MIDI</label>
+			<label class="switch" for="midiEnable">
+			  <input id="midiEnable" type="checkbox" checked />
+			  <span class="switch-ui"></span>
+			  <span class="switch-text">
+				<span class="switch-on">Aan</span>
+				<span class="switch-off">Uit</span>
+			  </span>
+			</label>
+		  </div>
 
-          <div class="field">
-            <label for="gateInput">Gate %</label>
-            <input id="gateInput" type="number" min="5" max="95" value="70" />
-          </div>
+		  <div class="field">
+			<label for="midiOutputSelect">Output</label>
+			<select id="midiOutputSelect">
+			  <option value="">Geen output</option>
+			</select>
+		  </div>
 
-          <div class="field">
-            <label for="octaveShift">Octaaf</label>
-            <select id="octaveShift">
-              <option value="-12">-1</option>
-              <option value="0" selected>0</option>
-              <option value="12">+1</option>
-            </select>
-          </div>
-        </section>
+		  <div class="field">
+			<label for="midiChannelSelect">Kanaal</label>
+			<select id="midiChannelSelect"></select>
+		  </div>
 
-        <section class="midi card fm-midi-panel">
-          <div class="toggle-field">
-            <label for="midiEnable">MIDI</label>
-            <label class="switch" for="midiEnable">
-              <input id="midiEnable" type="checkbox" checked />
-              <span class="switch-ui"></span>
-              <span class="switch-text">
-                <span class="switch-on">Aan</span>
-                <span class="switch-off">Uit</span>
-              </span>
-            </label>
-          </div>
+		  <div class="midi-hint" id="modeHint">
+			Step mode: klik noten in het grid of op de piano om steps op te bouwen.
+		  </div>
+		</section>
 
-          <div class="field">
-            <label for="midiOutputSelect">Output</label>
-            <select id="midiOutputSelect">
-              <option value="">Geen output</option>
-            </select>
-          </div>
+		<section class="controls card fm-performance-controls">
+		  <div class="field bpm-field">
+			<label for="tempoInput">BPM</label>
+			<input id="tempoInput" type="number" min="40" max="240" value="132" />
+		  </div>
 
-          <div class="field">
-            <label for="midiChannelSelect">Kanaal</label>
-            <select id="midiChannelSelect"></select>
-          </div>
+		  <div class="field">
+			<label for="gateInput">Gate %</label>
+			<input id="gateInput" type="number" min="5" max="95" value="70" />
+		  </div>
 
-          <div class="midi-hint" id="modeHint">
-            Step mode: klik noten in het grid of op de piano om steps op te bouwen.
-          </div>
-        </section>
+		  <div class="field">
+			<label for="octaveShift">Octaaf</label>
+			<select id="octaveShift">
+			  <option value="-12">-1</option>
+			  <option value="0" selected>0</option>
+			  <option value="12">+1</option>
+			</select>
+		  </div>
+		</section>
       </div>
     </section>
 
