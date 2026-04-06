@@ -155,24 +155,24 @@ function getVisibleRows() {
 function updateGridScale() {
   const width = window.innerWidth;
   let stepSize = 46;
-  let rowHeight = 30;
-  let labelWidth = 72;
+  let rowHeight = 32;
+  let labelWidth = 56;
   let gap = 4;
 
   if (state.steps >= 32) {
     stepSize = width < 1400 ? 24 : 30;
-    rowHeight = width < 1400 ? 20 : 24;
-    labelWidth = width < 1400 ? 56 : 64;
+    rowHeight = width < 1400 ? 22 : 26;
+    labelWidth = width < 1400 ? 44 : 50;
     gap = 2;
   } else if (state.steps >= 16) {
     stepSize = width < 1400 ? 38 : 46;
-    rowHeight = width < 1400 ? 26 : 30;
-    labelWidth = width < 1400 ? 62 : 72;
+    rowHeight = width < 1400 ? 28 : 32;
+    labelWidth = width < 1400 ? 50 : 56;
     gap = 3;
   } else {
     stepSize = width < 1400 ? 46 : 54;
-    rowHeight = width < 1400 ? 30 : 34;
-    labelWidth = width < 1400 ? 68 : 76;
+    rowHeight = width < 1400 ? 32 : 36;
+    labelWidth = width < 1400 ? 54 : 60;
     gap = 4;
   }
 
