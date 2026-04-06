@@ -154,27 +154,29 @@ function getVisibleRows() {
 
 function updateGridScale() {
   const width = window.innerWidth;
-  let stepSize = 60;
-  let rowHeight = 40;
-  let labelWidth = 82;
-  let gap = 5;
+  let stepSize = 46;
+  let rowHeight = 34;
+  let labelWidth = 64;
+  let gap = 4;
 
   if (state.steps >= 32) {
-    stepSize = width < 900 ? 24 : 30;
-    rowHeight = width < 900 ? 24 : 28;
-    labelWidth = width < 900 ? 60 : 68;
-    gap = 3;
+    stepSize = width < 1200 ? 20 : 24;
+    rowHeight = width < 1200 ? 22 : 24;
+    labelWidth = width < 1200 ? 52 : 56;
+    gap = 2;
   } else if (state.steps >= 16) {
-    stepSize = width < 900 ? 38 : 60;
-    rowHeight = width < 900 ? 30 : 40;
-    labelWidth = width < 900 ? 64 : 82;
-    gap = width < 900 ? 4 : 5;
+    stepSize = width < 1200 ? 32 : 38;
+    rowHeight = width < 1200 ? 26 : 30;
+    labelWidth = width < 1200 ? 56 : 60;
+    gap = 3;
   }
 
   document.documentElement.style.setProperty("--fm-step-size", `${stepSize}px`);
   document.documentElement.style.setProperty("--fm-row-height", `${rowHeight}px`);
   document.documentElement.style.setProperty("--fm-label-width", `${labelWidth}px`);
   document.documentElement.style.setProperty("--fm-grid-gap", `${gap}px`);
+  document.documentElement.style.setProperty("--fm-step-count", String(state.steps));
+  document.documentElement.style.setProperty("--fm-row-count", String(getVisibleRows().length));
 }
 
 function normalizeStep(step) {
