@@ -373,6 +373,7 @@ function buildPiano() {
   const rootStyle = getComputedStyle(document.documentElement);
   const whiteWidth = parseFloat(rootStyle.getPropertyValue("--fm-white-key-width")) || 68;
   const blackWidth = parseFloat(rootStyle.getPropertyValue("--fm-black-key-width")) || 40;
+  const whiteGap = parseFloat(rootStyle.getPropertyValue("--fm-white-key-gap")) || 2;
 
   PIANO_LAYOUT.forEach((item) => {
     const shiftedMidi = item.midi + Number(state.octaveShift);
@@ -385,7 +386,6 @@ function buildPiano() {
 
     const keyText = MIDI_TO_KEY[item.midi] || "";
     const labels = buildPianoKeyLabelWrap(noteNameFromMidi(shiftedMidi), keyText);
-
     btn.appendChild(labels.note);
     btn.appendChild(labels.keybind);
 
@@ -397,13 +397,15 @@ function buildPiano() {
         setStatus(`Live: ${noteNameFromMidi(shiftedMidi)}`);
         setDisplay(`LIVE: ${noteNameFromMidi(shiftedMidi)}`);
       }
+
       flashPianoMidi(shiftedMidi);
     });
 
     if (item.kind === "white") {
       els.pianoWhiteKeys.appendChild(btn);
     } else {
-      btn.style.left = `${(item.leftIndex + 1) * whiteWidth - blackWidth / 2}px`;
+      const boundaryX = (item.leftIndex + 1) * whiteWidth + item.leftIndex * whiteGap;
+      btn.style.left = `${boundaryX}px`;
       els.pianoBlackKeys.appendChild(btn);
     }
   });
