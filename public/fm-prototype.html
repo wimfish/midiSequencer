@@ -4,7 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Volca FM Prototype</title>
-
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="fm-prototype.css" />
 </head>
@@ -28,13 +27,13 @@
         >
           ▲ INSTELLINGEN OMHOOG
         </button>
-
         <div class="status fm-display" id="statusDisplay">FM PATTERN KLAAR</div>
       </div>
     </header>
 
     <section id="controlStack" class="control-stack fm-control-stack">
       <div id="advancedPanel" class="advanced-panel fm-advanced-panel">
+
         <section class="controls card fm-transport-panel">
           <div class="fm-transport-grid">
             <button id="playBtn" type="button">PLAY</button>
@@ -55,12 +54,12 @@
               </select>
             </div>
 
-            <div class="field small">
+            <div class="field">
               <label for="tempoInput">BPM</label>
               <input id="tempoInput" type="number" min="40" max="240" value="132" />
             </div>
 
-            <div class="field small">
+            <div class="field">
               <label for="stepCountSelect">Steps</label>
               <select id="stepCountSelect">
                 <option value="8">8</option>
@@ -69,12 +68,12 @@
               </select>
             </div>
 
-            <div class="field small">
+            <div class="field">
               <label for="gateInput">Gate %</label>
               <input id="gateInput" type="number" min="5" max="95" value="70" />
             </div>
 
-            <div class="field small">
+            <div class="field">
               <label for="octaveShift">Octaaf</label>
               <select id="octaveShift">
                 <option value="-12">-1</option>
@@ -97,13 +96,13 @@
               </select>
             </div>
 
-            <div class="field small">
+            <div class="field">
               <label for="midiChannelSelect">Kanaal</label>
               <select id="midiChannelSelect"></select>
             </div>
 
             <div class="field fm-info-field">
-              <label>Info</label>
+              <label for="modeHint">Info</label>
               <div class="fm-info-box" id="modeHint">
                 Step mode: klik noten in het grid of op de piano om steps op te bouwen.
               </div>
@@ -123,7 +122,6 @@
     <section class="card fm-sequencer-card">
       <div class="fm-sequencer-inner">
         <div class="grid-header" id="gridHeader"></div>
-
         <div class="grid-wrap">
           <div class="note-labels" id="noteLabels"></div>
           <div class="grid" id="grid"></div>
@@ -134,9 +132,7 @@
     <section class="card fm-piano-card">
       <div class="fm-piano-head">
         <div class="keyboard-title">Live Keyboard</div>
-        <div class="keyboard-help">
-          Gebruik <strong>Z–M</strong> en <strong>Q–U</strong>, of klik op de piano.
-        </div>
+        <div class="keyboard-help">Gebruik Z–M en Q–U, of klik op de piano.</div>
       </div>
 
       <div class="fm-piano-shell">
