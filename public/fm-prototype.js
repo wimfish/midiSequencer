@@ -156,23 +156,23 @@ function updateGridScale() {
   const width = window.innerWidth;
   let stepSize = 46;
   let rowHeight = 32;
-  let labelWidth = 56;
+  let labelWidth = 72;
   let gap = 4;
 
   if (state.steps >= 32) {
     stepSize = width < 1400 ? 24 : 30;
     rowHeight = width < 1400 ? 22 : 26;
-    labelWidth = width < 1400 ? 44 : 50;
+    labelWidth = width < 1400 ? 54 : 60;
     gap = 2;
   } else if (state.steps >= 16) {
     stepSize = width < 1400 ? 38 : 46;
     rowHeight = width < 1400 ? 28 : 32;
-    labelWidth = width < 1400 ? 50 : 56;
+    labelWidth = width < 1400 ? 62 : 72;
     gap = 3;
   } else {
     stepSize = width < 1400 ? 46 : 54;
     rowHeight = width < 1400 ? 32 : 36;
-    labelWidth = width < 1400 ? 54 : 60;
+    labelWidth = width < 1400 ? 68 : 76;
     gap = 4;
   }
 
@@ -327,7 +327,12 @@ function buildLabels() {
   rows.forEach((row) => {
     const el = document.createElement("div");
     el.className = "note-label";
-    el.textContent = row.name;
+
+    const badge = document.createElement("span");
+    badge.className = "note-label-badge";
+    badge.textContent = row.name;
+
+    el.appendChild(badge);
     els.noteLabels.appendChild(el);
   });
 }
