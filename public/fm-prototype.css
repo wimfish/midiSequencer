@@ -8,7 +8,7 @@
   --muted: #9aa3b5;
   --accent: #7dd3fc;
   --accent-2: #f9c74f;
-  --active: #69f0ae;
+  --active: #56d3ff;
   --danger: #ff6b6b;
   --shadow: 0 14px 40px rgba(0, 0, 0, 0.25);
   --radius: 18px;
@@ -186,9 +186,9 @@ button.secondary {
 }
 
 .header-step.has-data {
-  background: rgba(105,240,174,0.20);
-  border-color: rgba(105,240,174,0.55);
-  color: var(--active);
+  background: rgba(86,211,255,0.16);
+  border-color: rgba(86,211,255,0.48);
+  color: #8fe6ff;
   font-weight: 700;
 }
 
@@ -273,6 +273,7 @@ button.secondary {
   background:
     linear-gradient(180deg, rgba(105,240,174,0.34), rgba(105,240,174,0.18));
   border-color: rgba(105,240,174,0.55);
+  box-shadow: 0 0 0 1px rgba(105,240,174,0.08), 0 0 12px rgba(105,240,174,0.10);
 }
 
 .cell.flash-denied {
@@ -292,13 +293,20 @@ button.secondary {
 }
 
 .piano-keys {
-  display: flex;
+  display: grid;
+  gap: 12px;
+  justify-content: center;
+}
+
+.piano-row {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(78px, 1fr));
   gap: 8px;
-  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .piano-key {
-  min-width: 86px;
+  min-width: 78px;
   padding: 12px 10px;
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
@@ -336,6 +344,12 @@ button.secondary {
   margin-top: 10px;
 }
 
+@media (max-width: 1180px) {
+  .piano-row {
+    grid-template-columns: repeat(6, minmax(78px, 1fr));
+  }
+}
+
 @media (max-width: 980px) {
   .panel-row {
     grid-template-columns: 1fr;
@@ -347,5 +361,11 @@ button.secondary {
 
   .top-actions {
     width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  .piano-row {
+    grid-template-columns: repeat(4, minmax(78px, 1fr));
   }
 }
