@@ -14,7 +14,8 @@
   --radius: 18px;
   --step-size: 44px;
   --row-height: 34px;
-  --label-width: 64px;
+  --label-width: 72px;
+  --grid-gap: 4px;
 }
 
 * {
@@ -158,16 +159,17 @@ button.secondary {
 
 .sequencer-wrap {
   padding: 16px;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .grid-header {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: var(--step-size);
-  gap: 4px;
+  gap: var(--grid-gap);
   margin-left: calc(var(--label-width) + 8px);
   margin-bottom: 8px;
+  min-width: 0;
 }
 
 .header-step {
@@ -180,6 +182,7 @@ button.secondary {
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.04);
   transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  min-width: 0;
 }
 
 .header-step.has-data {
@@ -198,14 +201,16 @@ button.secondary {
 .grid-wrap {
   display: flex;
   gap: 8px;
-  min-width: max-content;
+  min-width: 0;
+  width: 100%;
 }
 
 .note-labels {
   width: var(--label-width);
+  min-width: var(--label-width);
   display: grid;
   grid-auto-rows: var(--row-height);
-  gap: 4px;
+  gap: var(--grid-gap);
 }
 
 .note-label {
@@ -215,6 +220,7 @@ button.secondary {
   padding-right: 8px;
   font-size: 12px;
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .note-label.root {
@@ -224,15 +230,18 @@ button.secondary {
 
 .grid {
   display: grid;
-  gap: 4px;
+  gap: var(--grid-gap);
+  flex: 1;
+  min-width: 0;
 }
 
 .grid-row {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: var(--step-size);
-  gap: 4px;
+  gap: var(--grid-gap);
   height: var(--row-height);
+  min-width: 0;
 }
 
 .cell {
@@ -248,6 +257,7 @@ button.secondary {
   transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
   position: relative;
   overflow: hidden;
+  min-width: 0;
 }
 
 .cell:hover {

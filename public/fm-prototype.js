@@ -1,4 +1,4 @@
-const NOTE_ROWS = [
+const BASE_NOTE_ROWS = [
   { name: "B4", midi: 71 },
   { name: "A#4", midi: 70 },
   { name: "A4", midi: 69 },
@@ -41,7 +41,7 @@ const KEYBOARD_MAP = [
 ];
 
 const KEY_TO_MIDI = Object.fromEntries(KEYBOARD_MAP.map(item => [item.key, item.midi]));
-const STORAGE_KEY = "volca-fm-prototype-v4";
+const STORAGE_KEY = "volca-fm-prototype-v5";
 const MAX_NOTES_PER_STEP = 3;
 
 const state = {
@@ -53,7 +53,7 @@ const state = {
   isPlaying: false,
   currentStep: 0,
   cursorStep: 0,
-  cursorRow: NOTE_ROWS.findIndex(row => row.midi === 60),
+  cursorRow: BASE_NOTE_ROWS.findIndex(row => row.midi === 60),
   pattern: Array.from({ length: 16 }, () => []),
   midiEnabled: true,
   midiAccess: null,
@@ -103,6 +103,34 @@ function noteNameFromMidi(midi) {
   return `${names[midi % 12]}${octave}`;
 }
 
+function getVisibleRows() {
+  return BASE_NOTE_ROWS.map(row => {
+    const midi = row.midi + Number(state.octaveShift);
+    return {
+      midi,
+      name: noteNameFromMidi(midi)
+    };
+  });
+}
+
+function updateGridScale() {
+  const totalWidth = window.innerWidth;
+  const available = Math.min(1340, Math.max(720, totalWidth - 90));
+
+  const labelWidth = state.steps >= 32 ? 62 : 72;
+  const gap = state.steps >= 32 ? 3 : 4;
+  const minStep = state.steps >= 32 ? 22 : state.steps >= 24 ? 28 : 44;
+  const computedStep = Math.floor((available - labelWidth - 8 - (gap * (state.steps - 1))) / state.steps);
+
+  const stepSize = clamp(computedStep, minStep, 44);
+  const rowHeight = stepSize >= 40 ? 34 : stepSize >= 30 ? 30 : 26;
+
+  document.documentElement.style.setProperty("--label-width", `${labelWidth}px`);
+  document.documentElement.style.setProperty("--grid-gap", `${gap}px`);
+  document.documentElement.style.setProperty("--step-size", `${stepSize}px`);
+  document.documentElement.style.setProperty("--row-height", `${rowHeight}px`);
+}
+
 function normalizeStep(step) {
   if (!Array.isArray(step)) return [];
   const unique = [...new Set(step.map(Number).filter(Number.isFinite))];
@@ -122,7 +150,7 @@ function setStepNotes(stepIndex, notes) {
 }
 
 function getCursorMidi() {
-  return NOTE_ROWS[state.cursorRow].midi + Number(state.octaveShift);
+  return getVisibleRows()[state.cursorRow].midi;
 }
 
 function getCellKey(stepIndex, midiNote) {
@@ -179,29 +207,11 @@ function toggleStepOnOff(stepIndex) {
   render();
 }
 
-function transposeTopNote(stepIndex, delta) {
-  const notes = getStepNotes(stepIndex);
-
-  if (!notes.length) {
-    const base = clamp(60 + Number(state.octaveShift) + delta, 36, 96);
-    setStepNotes(stepIndex, [base]);
-    setStatus(`Step ${stepIndex + 1} → ${noteNameFromMidi(base)}`);
-    render();
-    return;
-  }
-
-  const next = [...notes];
-  next[next.length - 1] = clamp(next[next.length - 1] + delta, 36, 96);
-  setStepNotes(stepIndex, next);
-  setStatus(`Step ${stepIndex + 1} topnote → ${noteNameFromMidi(next[next.length - 1])}`);
-  render();
-}
-
 function clearPattern() {
   state.pattern = createEmptyPattern(state.steps);
   state.currentStep = 0;
   state.cursorStep = 0;
-  state.cursorRow = NOTE_ROWS.findIndex(row => row.midi === 60);
+  state.cursorRow = BASE_NOTE_ROWS.findIndex(row => row.midi === 60);
   render();
   setStatus("Pattern gewist");
 }
@@ -212,6 +222,7 @@ function resizePattern(nextSteps) {
   state.pattern = next;
   state.currentStep = 0;
   state.cursorStep = clamp(state.cursorStep, 0, state.steps - 1);
+  updateGridScale();
   render();
 }
 
@@ -241,8 +252,10 @@ function buildHeader() {
 }
 
 function buildLabels() {
+  const rows = getVisibleRows();
   els.noteLabels.innerHTML = "";
-  NOTE_ROWS.forEach((row) => {
+
+  rows.forEach((row) => {
     const el = document.createElement("div");
     const root = row.name.startsWith("C") || row.name.startsWith("F");
     el.className = `note-label${root ? " root" : ""}`;
@@ -252,22 +265,21 @@ function buildLabels() {
 }
 
 function renderGrid() {
+  const rows = getVisibleRows();
   els.grid.innerHTML = "";
 
-  NOTE_ROWS.forEach((row, rowIndex) => {
+  rows.forEach((row, rowIndex) => {
     const rowEl = document.createElement("div");
     rowEl.className = "grid-row";
-
 
     for (let stepIndex = 0; stepIndex < state.steps; stepIndex += 1) {
       const cell = document.createElement("button");
       cell.type = "button";
 
       const stepNotes = getStepNotes(stepIndex);
-      const rowMidi = row.midi + Number(state.octaveShift);
-      const isNoteHere = stepNotes.includes(rowMidi);
+      const isNoteHere = stepNotes.includes(row.midi);
       const isCursor = state.cursorStep === stepIndex && state.cursorRow === rowIndex;
-      const isDenied = state.deniedCellKey === getCellKey(stepIndex, rowMidi);
+      const isDenied = state.deniedCellKey === getCellKey(stepIndex, row.midi);
 
       cell.className = `cell${isCursor ? " cursor" : ""}${isNoteHere ? " has-note" : ""}${isDenied ? " flash-denied" : ""}`;
       cell.dataset.step = String(stepIndex);
@@ -280,8 +292,8 @@ function renderGrid() {
         if (state.mode === "step") {
           toggleCurrentCell();
         } else {
-          previewChord([rowMidi], 112, 180);
-          setStatus(`Live: ${noteNameFromMidi(rowMidi)}`);
+          previewChord([row.midi], 112, 180);
+          setStatus(`Live: ${noteNameFromMidi(row.midi)}`);
           render();
         }
       });
@@ -303,20 +315,21 @@ function renderPianoKeys() {
     btn.className = `piano-key${black ? " black" : ""}`;
     btn.dataset.key = item.key;
 
+    const midi = clamp(item.midi + Number(state.octaveShift), 36, 96);
+    const liveLabel = noteNameFromMidi(midi);
+
     const note = document.createElement("div");
     note.className = "note";
-    note.textContent = item.label;
+    note.textContent = liveLabel;
 
     const keybind = document.createElement("div");
     keybind.className = "keybind";
-    keybind.textContent = `${item.key.toUpperCase()} = ${item.label}`;
+    keybind.textContent = `${item.key.toUpperCase()} = ${liveLabel}`;
 
     btn.appendChild(note);
     btn.appendChild(keybind);
 
     btn.addEventListener("click", () => {
-      const midi = clamp(item.midi + Number(state.octaveShift), 36, 96);
-
       if (state.mode === "step") {
         toggleNoteInStep(state.cursorStep, midi);
       } else {
@@ -332,6 +345,7 @@ function renderPianoKeys() {
 }
 
 function render() {
+  updateGridScale();
   buildHeader();
   buildLabels();
   renderGrid();
@@ -491,7 +505,7 @@ function loadPattern() {
     state.pattern = Array.from({ length: state.steps }, (_, i) => normalizeStep(data.pattern?.[i] || []));
     state.midiChannel = Number(data.midiChannel) || 1;
     state.cursorStep = clamp(Number(data.cursorStep) || 0, 0, state.steps - 1);
-    state.cursorRow = clamp(Number(data.cursorRow) || 0, 0, NOTE_ROWS.length - 1);
+    state.cursorRow = clamp(Number(data.cursorRow) || 0, 0, BASE_NOTE_ROWS.length - 1);
 
     els.modeSelect.value = state.mode;
     els.stepCountSelect.value = String(state.steps);
@@ -500,6 +514,7 @@ function loadPattern() {
     els.octaveShift.value = String(state.octaveShift);
     els.midiChannelSelect.value = String(state.midiChannel);
 
+    updateGridScale();
     render();
     setStatus("Prototype geladen");
   } catch (error) {
@@ -564,7 +579,7 @@ function moveCursorStep(delta) {
 }
 
 function moveCursorRow(delta) {
-  state.cursorRow = (state.cursorRow + delta + NOTE_ROWS.length) % NOTE_ROWS.length;
+  state.cursorRow = (state.cursorRow + delta + BASE_NOTE_ROWS.length) % BASE_NOTE_ROWS.length;
   render();
 }
 
@@ -645,6 +660,11 @@ function bindEvents() {
     setStatus(`MIDI kanaal ${state.midiChannel}`);
   });
 
+  window.addEventListener("resize", () => {
+    updateGridScale();
+    render();
+  });
+
   document.addEventListener("keydown", (event) => {
     const tag = document.activeElement?.tagName;
     const typing = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
@@ -712,6 +732,7 @@ function bindEvents() {
 function init() {
   populateChannels();
   bindEvents();
+  updateGridScale();
   render();
   initMidi();
 }
