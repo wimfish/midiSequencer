@@ -71,7 +71,7 @@ const PIANO_LAYOUT = [
 
 const KEY_TO_MIDI = Object.fromEntries(KEYBOARD_MAP.map((item) => [item.key, item.midi]));
 const MIDI_TO_KEY = Object.fromEntries(KEYBOARD_MAP.map((item) => [item.midi, item.key.toUpperCase()]));
-const STORAGE_KEY = "volca-fm-prototype-v9";
+const STORAGE_KEY = "volca-fm-prototype-v10";
 const MAX_NOTES_PER_STEP = 3;
 
 const state = {
@@ -121,7 +121,7 @@ const els = {
   modeHint: document.getElementById("modeHint"),
   pianoWhiteKeys: document.getElementById("pianoWhiteKeys"),
   pianoBlackKeys: document.getElementById("pianoBlackKeys"),
-  controlsPanel: document.querySelector(".fm-controls-panel")
+  settingsPanel: document.getElementById("settingsPanel")
 };
 
 function setStatus(text) {
@@ -154,7 +154,7 @@ function getVisibleRows() {
 
 function updateGridScale() {
   const width = window.innerWidth;
-  let stepSize = 58;
+  let stepSize = 60;
   let rowHeight = 40;
   let labelWidth = 82;
   let gap = 5;
@@ -165,7 +165,7 @@ function updateGridScale() {
     labelWidth = width < 900 ? 60 : 68;
     gap = 3;
   } else if (state.steps >= 16) {
-    stepSize = width < 900 ? 38 : 58;
+    stepSize = width < 900 ? 38 : 60;
     rowHeight = width < 900 ? 30 : 40;
     labelWidth = width < 900 ? 64 : 82;
     gap = width < 900 ? 4 : 5;
@@ -518,7 +518,6 @@ function startPlayback() {
   setStatus("Playback gestart");
   setDisplay("PLAYBACK ACTIEF");
   playCurrentStep();
-
   state.timerId = window.setInterval(playCurrentStep, stepDurationMs());
   render();
 }
@@ -690,7 +689,7 @@ function handleMappedKey(lower) {
 
 function toggleSettingsPanel() {
   state.settingsOpen = !state.settingsOpen;
-  els.controlsPanel.style.display = state.settingsOpen ? "block" : "none";
+  els.settingsPanel.style.display = state.settingsOpen ? "block" : "none";
   els.toggleSettingsBtn.textContent = state.settingsOpen
     ? "▲ INSTELLINGEN OMHOOG"
     : "▼ INSTELLINGEN OMLAAG";
@@ -782,6 +781,7 @@ function bindEvents() {
     }
 
     if (event.key === "ArrowLeft") {
+
       event.preventDefault();
       moveCursorStep(-1);
       return;
