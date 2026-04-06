@@ -12,9 +12,9 @@
       <div>
         <h1>Volca FM Prototype</h1>
         <p class="sub">
-          Losse testversie voor gevoel: piano-roll + live toetsen.
-          Pijlen links/rechts = step kiezen, pijlen omhoog/omlaag = noot veranderen,
-          Enter = step aan/uit, spatie = play/stop.
+          Aparte testversie voor Volca FM. Maximaal 3 noten per step.
+          Links/rechts = step kiezen, Enter = step aan/uit, pijlen omhoog/omlaag = bovenste noot transponeren.
+          Live keyboard: <strong>Z S X D C V G B H N J M</strong> en <strong>Q 2 W 3 E R 5 T 6 Y 7 U</strong>.
         </p>
       </div>
 
@@ -77,15 +77,15 @@
         </div>
 
         <div class="field">
-          <label>Browser audio</label>
-          <div class="hint-line">Fallback preview als MIDI niet actief is</div>
+          <label>Live keys</label>
+          <div class="hint-line">Z-row = octaaf lager, Q-row = octaaf hoger</div>
         </div>
       </section>
     </section>
 
     <section class="card status-bar">
       <div id="statusText">Klaar</div>
-      <div id="cursorInfo">Step 1 · C4</div>
+      <div id="cursorInfo">Step 1 · leeg</div>
     </section>
 
     <section class="card sequencer-wrap">
@@ -97,11 +97,11 @@
     </section>
 
     <section class="card keyboard-wrap">
-      <div class="keyboard-title">Live toetsen / note input</div>
+      <div class="keyboard-title">Live performance toetsen</div>
       <div class="piano-keys" id="pianoKeys"></div>
       <div class="keyboard-help">
-        Klik op een toets om de geselecteerde step die noot te geven.
-        Nogmaals op dezelfde step/noot = uit.
+        Klik op toetsen of gebruik je computertoetsenbord. Een step kan maximaal 3 noten bevatten.
+        Als je een 4e toevoegt, wordt de oudste vervangen.
       </div>
     </section>
   </div>

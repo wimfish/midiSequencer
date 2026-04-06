@@ -13,7 +13,62 @@ const NOTE_ROWS = [
   { name: "C4", midi: 60 }
 ];
 
-const STORAGE_KEY = "volca-fm-prototype-v1";
+const KEYBOARD_MAP = {
+  z: 48,
+  s: 49,
+  x: 50,
+  d: 51,
+  c: 52,
+  v: 53,
+  g: 54,
+  b: 55,
+  h: 56,
+  n: 57,
+  j: 58,
+  m: 59,
+  q: 60,
+  2: 61,
+  w: 62,
+  3: 63,
+  e: 64,
+  r: 65,
+  5: 66,
+  t: 67,
+  6: 68,
+  y: 69,
+  7: 70,
+  u: 71
+};
+
+const PIANO_KEYS = [
+  { label: "C3", midi: 48 },
+  { label: "C#3", midi: 49, black: true },
+  { label: "D3", midi: 50 },
+  { label: "D#3", midi: 51, black: true },
+  { label: "E3", midi: 52 },
+  { label: "F3", midi: 53 },
+  { label: "F#3", midi: 54, black: true },
+  { label: "G3", midi: 55 },
+  { label: "G#3", midi: 56, black: true },
+  { label: "A3", midi: 57 },
+  { label: "A#3", midi: 58, black: true },
+  { label: "B3", midi: 59 },
+  { label: "C4", midi: 60 },
+  { label: "C#4", midi: 61, black: true },
+  { label: "D4", midi: 62 },
+  { label: "D#4", midi: 63, black: true },
+  { label: "E4", midi: 64 },
+  { label: "F4", midi: 65 },
+  { label: "F#4", midi: 66, black: true },
+  { label: "G4", midi: 67 },
+  { label: "G#4", midi: 68, black: true },
+  { label: "A4", midi: 69 },
+  { label: "A#4", midi: 70, black: true },
+  { label: "B4", midi: 71 }
+];
+
+const STORAGE_KEY = "volca-fm-prototype-v2";
+const MAX_NOTES_PER_STEP = 3;
 
 const state = {
   steps: 16,
@@ -23,14 +78,15 @@ const state = {
   isPlaying: false,
   currentStep: 0,
   cursorStep: 0,
-  pattern: Array.from({ length: 16 }, () => null),
+  pattern: Array.from({ length: 16 }, () => []),
   midiEnabled: true,
   midiAccess: null,
   midiOutputs: [],
   midiOutputId: "",
   midiChannel: 1,
   timerId: null,
-  audioContext: null
+  audioContext: null,
+  heldKeys: new Set()
 };
 
 const els = {
@@ -58,42 +114,84 @@ function setStatus(text) {
   els.statusText.textContent = text;
 }
 
-function noteNameFromMidi(midi) {
-  const found = NOTE_ROWS.find((row) => row.midi === midi);
-  if (found) return found.name;
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
 
+function noteNameFromMidi(midi) {
   const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   const octave = Math.floor(midi / 12) - 1;
   return `${names[midi % 12]}${octave}`;
 }
 
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
+function normalizeStep(step) {
+  if (!Array.isArray(step)) return [];
+  const unique = [...new Set(step.map((n) => Number(n)).filter((n) => Number.isFinite(n)))];
+  return unique.slice(0, MAX_NOTES_PER_STEP).sort((a, b) => a - b);
 }
 
-function getStepMidi(stepIndex) {
-  return state.pattern[stepIndex];
+function createEmptyPattern(length) {
+  return Array.from({ length }, () => []);
 }
 
-function setStepMidi(stepIndex, midiNote) {
-  if (state.pattern[stepIndex] === midiNote) {
-    state.pattern[stepIndex] = null;
+function getStepNotes(stepIndex) {
+  return normalizeStep(state.pattern[stepIndex] || []);
+}
+
+function setStepNotes(stepIndex, notes) {
+  state.pattern[stepIndex] = normalizeStep(notes);
+}
+
+function toggleStepOnOff(stepIndex) {
+  const current = getStepNotes(stepIndex);
+  if (current.length) {
+    setStepNotes(stepIndex, []);
     setStatus(`Step ${stepIndex + 1} uit`);
   } else {
-    state.pattern[stepIndex] = midiNote;
-    setStatus(`Step ${stepIndex + 1} → ${noteNameFromMidi(midiNote)}`);
+    setStepNotes(stepIndex, [60 + Number(state.octaveShift)]);
+    setStatus(`Step ${stepIndex + 1} aan`);
   }
   render();
 }
 
-function forceStepMidi(stepIndex, midiNote) {
-  state.pattern[stepIndex] = midiNote;
-  setStatus(`Step ${stepIndex + 1} → ${noteNameFromMidi(midiNote)}`);
+function addNoteToStep(stepIndex, midiNote) {
+  const notes = getStepNotes(stepIndex);
+
+  if (notes.includes(midiNote)) {
+    setStepNotes(stepIndex, notes.filter((note) => note !== midiNote));
+    setStatus(`Step ${stepIndex + 1} noot verwijderd: ${noteNameFromMidi(midiNote)}`);
+  } else {
+    const next = [...notes, midiNote];
+    while (next.length > MAX_NOTES_PER_STEP) {
+      next.shift();
+    }
+    setStepNotes(stepIndex, next);
+    setStatus(`Step ${stepIndex + 1} + ${noteNameFromMidi(midiNote)}`);
+  }
+
+  render();
+}
+
+function transposeTopNote(stepIndex, delta) {
+  const notes = getStepNotes(stepIndex);
+
+  if (!notes.length) {
+    const base = clamp(60 + Number(state.octaveShift) + delta, 36, 96);
+    setStepNotes(stepIndex, [base]);
+    setStatus(`Step ${stepIndex + 1} → ${noteNameFromMidi(base)}`);
+    render();
+    return;
+  }
+
+  const next = [...notes];
+  next[next.length - 1] = clamp(next[next.length - 1] + delta, 36, 96);
+  setStepNotes(stepIndex, next);
+  setStatus(`Step ${stepIndex + 1} topnote → ${noteNameFromMidi(next[next.length - 1])}`);
   render();
 }
 
 function clearPattern() {
-  state.pattern = Array.from({ length: state.steps }, () => null);
+  state.pattern = createEmptyPattern(state.steps);
   state.currentStep = 0;
   state.cursorStep = 0;
   render();
@@ -101,7 +199,7 @@ function clearPattern() {
 }
 
 function resizePattern(nextSteps) {
-  const next = Array.from({ length: nextSteps }, (_, i) => state.pattern[i] ?? null);
+  const next = Array.from({ length: nextSteps }, (_, i) => normalizeStep(state.pattern[i] || []));
   state.steps = nextSteps;
   state.pattern = next;
   state.currentStep = 0;
@@ -110,8 +208,8 @@ function resizePattern(nextSteps) {
 }
 
 function updateCursorInfo() {
-  const midi = getStepMidi(state.cursorStep);
-  els.cursorInfo.textContent = `Step ${state.cursorStep + 1} · ${midi === null ? "leeg" : noteNameFromMidi(midi)}`;
+  const notes = getStepNotes(state.cursorStep);
+  els.cursorInfo.textContent = `Step ${state.cursorStep + 1} · ${notes.length ? notes.map(noteNameFromMidi).join(" / ") : "leeg"}`;
 }
 
 function buildHeader() {
@@ -137,6 +235,7 @@ function buildLabels() {
 
 function renderGrid() {
   els.grid.innerHTML = "";
+
   NOTE_ROWS.forEach((row) => {
     const rowEl = document.createElement("div");
     rowEl.className = "grid-row";
@@ -145,19 +244,30 @@ function renderGrid() {
       const cell = document.createElement("button");
       cell.type = "button";
 
-      const stepMidi = getStepMidi(stepIndex);
-      const isActive = stepMidi === row.midi + Number(state.octaveShift);
+      const stepNotes = getStepNotes(stepIndex);
+      const rowMidi = row.midi + Number(state.octaveShift);
+      const isActiveInRow = stepNotes.includes(rowMidi);
       const isCursor = state.cursorStep === stepIndex;
       const isPlaying = state.isPlaying && state.currentStep === stepIndex;
 
-      cell.className = `cell${isActive ? " active" : ""}${isCursor ? " cursor" : ""}${isPlaying ? " playing" : ""}`;
-      cell.textContent = isActive ? "●" : "";
-      cell.dataset.step = String(stepIndex);
-      cell.dataset.midi = String(row.midi + Number(state.octaveShift));
+      cell.className = `cell${stepNotes.length ? " active" : ""}${stepNotes.length === 1 ? " single" : ""}${isCursor ? " cursor" : ""}${isPlaying ? " playing" : ""}`;
+
+      if (isActiveInRow) {
+        const stack = document.createElement("div");
+        stack.className = "stack";
+
+        for (let i = 0; i < stepNotes.length; i += 1) {
+          const dot = document.createElement("span");
+          dot.className = "dot";
+          stack.appendChild(dot);
+        }
+
+        cell.appendChild(stack);
+      }
 
       cell.addEventListener("click", () => {
         state.cursorStep = stepIndex;
-        setStepMidi(stepIndex, row.midi + Number(state.octaveShift));
+        addNoteToStep(stepIndex, rowMidi);
       });
 
       rowEl.appendChild(cell);
@@ -170,16 +280,16 @@ function renderGrid() {
 function renderPianoKeys() {
   els.pianoKeys.innerHTML = "";
 
-  NOTE_ROWS.slice().reverse().forEach((row) => {
+  PIANO_KEYS.forEach((keyDef) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = `piano-key${row.name.includes("#") ? " black" : ""}`;
-    btn.textContent = row.name;
+    btn.className = `piano-key${keyDef.black ? " black" : ""}`;
+    btn.textContent = keyDef.label;
 
     btn.addEventListener("click", () => {
-      const midi = row.midi + Number(state.octaveShift);
-      forceStepMidi(state.cursorStep, midi);
-      previewNote(midi, 110, 180);
+      const midi = clamp(keyDef.midi + Number(state.octaveShift), 36, 96);
+      addNoteToStep(state.cursorStep, midi);
+      previewChord([midi], 110, 180);
     });
 
     els.pianoKeys.appendChild(btn);
@@ -199,7 +309,7 @@ function getMidiOutput() {
   return state.midiOutputs.find((output) => output.id === state.midiOutputId) || null;
 }
 
-function sendMidiNote(midiNote, velocity = 110, durationMs = 180) {
+function sendMidiChord(notes, velocity = 110, durationMs = 180) {
   const output = getMidiOutput();
   if (!output) return false;
 
@@ -207,9 +317,14 @@ function sendMidiNote(midiNote, velocity = 110, durationMs = 180) {
   const noteOn = 0x90 + channel;
   const noteOff = 0x80 + channel;
 
-  output.send([noteOn, midiNote, velocity]);
+  notes.forEach((midiNote) => {
+    output.send([noteOn, midiNote, velocity]);
+  });
+
   window.setTimeout(() => {
-    output.send([noteOff, midiNote, 0]);
+    notes.forEach((midiNote) => {
+      output.send([noteOff, midiNote, 0]);
+    });
   }, durationMs);
 
   return true;
@@ -226,36 +341,43 @@ function midiToFrequency(midi) {
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
 
-function previewNote(midiNote, velocity = 100, durationMs = 180) {
-  const sent = sendMidiNote(midiNote, velocity, durationMs);
+function previewChord(notes, velocity = 100, durationMs = 180) {
+  if (!notes.length) return;
+
+  const sent = sendMidiChord(notes, velocity, durationMs);
   if (sent) return;
 
   const ctx = ensureAudioContext();
   if (ctx.state === "suspended") ctx.resume();
 
   const now = ctx.currentTime;
-  const gain = ctx.createGain();
-  const osc1 = ctx.createOscillator();
-  const osc2 = ctx.createOscillator();
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(0.0001, now);
+  master.gain.exponentialRampToValueAtTime(0.14, now + 0.01);
+  master.gain.exponentialRampToValueAtTime(0.0001, now + durationMs / 1000);
+  master.connect(ctx.destination);
 
-  osc1.type = "sine";
-  osc2.type = "triangle";
+  notes.forEach((midiNote) => {
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
 
-  osc1.frequency.value = midiToFrequency(midiNote);
-  osc2.frequency.value = midiToFrequency(midiNote) * 2;
+    osc1.type = "sine";
+    osc2.type = "triangle";
+    osc1.frequency.value = midiToFrequency(midiNote);
+    osc2.frequency.value = midiToFrequency(midiNote) * 2;
 
-  gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(0.12, now + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + durationMs / 1000);
+    gain.gain.value = 1 / Math.max(notes.length, 1);
 
-  osc1.connect(gain);
-  osc2.connect(gain);
-  gain.connect(ctx.destination);
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(master);
 
-  osc1.start(now);
-  osc2.start(now);
-  osc1.stop(now + durationMs / 1000 + 0.02);
-  osc2.stop(now + durationMs / 1000 + 0.02);
+    osc1.start(now);
+    osc2.start(now);
+    osc1.stop(now + durationMs / 1000 + 0.02);
+    osc2.stop(now + durationMs / 1000 + 0.02);
+  });
 }
 
 function stepDurationMs() {
@@ -265,10 +387,10 @@ function stepDurationMs() {
 function playCurrentStep() {
   render();
 
-  const midi = getStepMidi(state.currentStep);
-  if (midi !== null) {
+  const notes = getStepNotes(state.currentStep);
+  if (notes.length) {
     const duration = Math.max(40, Math.floor(stepDurationMs() * (state.gate / 100)));
-    previewNote(midi, 112, duration);
+    previewChord(notes, 112, duration);
   }
 
   state.currentStep = (state.currentStep + 1) % state.steps;
@@ -327,7 +449,7 @@ function loadPattern() {
     state.tempo = Number(data.tempo) || 132;
     state.gate = Number(data.gate) || 70;
     state.octaveShift = Number(data.octaveShift) || 0;
-    state.pattern = Array.from({ length: state.steps }, (_, i) => data.pattern?.[i] ?? null);
+    state.pattern = Array.from({ length: state.steps }, (_, i) => normalizeStep(data.pattern?.[i] || []));
     state.midiChannel = Number(data.midiChannel) || 1;
 
     els.stepCountSelect.value = String(state.steps);
@@ -400,28 +522,24 @@ function moveCursor(delta) {
   render();
 }
 
-function transposeCursor(delta) {
-  const current = getStepMidi(state.cursorStep);
-  if (current === null) {
-    const base = 60 + Number(state.octaveShift);
-    state.pattern[state.cursorStep] = clamp(base + delta, 48, 84);
-  } else {
-    state.pattern[state.cursorStep] = clamp(current + delta, 48, 84);
-  }
-  render();
-  setStatus(`Step ${state.cursorStep + 1} → ${noteNameFromMidi(state.pattern[state.cursorStep])}`);
+function highlightLiveKey(key) {
+  const buttons = [...els.pianoKeys.querySelectorAll(".piano-key")];
+  buttons.forEach((btn) => {
+    if (btn.textContent.toLowerCase() === key.toLowerCase()) {
+      btn.classList.add("active");
+      window.setTimeout(() => btn.classList.remove("active"), 140);
+    }
+  });
 }
 
-function toggleCursorStep() {
-  const current = getStepMidi(state.cursorStep);
-  if (current === null) {
-    state.pattern[state.cursorStep] = 60 + Number(state.octaveShift);
-    setStatus(`Step ${state.cursorStep + 1} aan`);
-  } else {
-    state.pattern[state.cursorStep] = null;
-    setStatus(`Step ${state.cursorStep + 1} uit`);
-  }
-  render();
+function playLiveNoteFromKey(key) {
+  const mapped = KEYBOARD_MAP[key];
+  if (mapped === undefined) return false;
+
+  const midi = clamp(mapped + Number(state.octaveShift), 36, 96);
+  addNoteToStep(state.cursorStep, midi);
+  previewChord([midi], 112, 180);
+  return true;
 }
 
 function bindEvents() {
@@ -474,15 +592,27 @@ function bindEvents() {
   document.addEventListener("keydown", (event) => {
     const tag = document.activeElement?.tagName;
     const typing = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
+    const lower = event.key.toLowerCase();
 
-    if (event.code === "Space" && !typing) {
+    if (typing) {
+      if (event.code === "Space") return;
+      return;
+    }
+
+    if (KEYBOARD_MAP[lower] !== undefined) {
+      if (state.heldKeys.has(lower)) return;
+      state.heldKeys.add(lower);
+      event.preventDefault();
+      playLiveNoteFromKey(lower);
+      return;
+    }
+
+    if (event.code === "Space") {
       event.preventDefault();
       if (state.isPlaying) stopPlayback();
       else startPlayback();
       return;
     }
-
-    if (typing) return;
 
     if (event.key === "ArrowLeft") {
       event.preventDefault();
@@ -498,21 +628,24 @@ function bindEvents() {
 
     if (event.key === "ArrowUp") {
       event.preventDefault();
-      transposeCursor(1);
+      transposeTopNote(state.cursorStep, 1);
       return;
     }
 
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      transposeCursor(-1);
+      transposeTopNote(state.cursorStep, -1);
       return;
     }
 
     if (event.key === "Enter") {
       event.preventDefault();
-      toggleCursorStep();
-      return;
+      toggleStepOnOff(state.cursorStep);
     }
+  });
+
+  document.addEventListener("keyup", (event) => {
+    state.heldKeys.delete(event.key.toLowerCase());
   });
 }
 

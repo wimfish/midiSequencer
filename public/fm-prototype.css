@@ -73,7 +73,7 @@ h1 {
 .sub {
   margin: 0;
   color: var(--muted);
-  max-width: 840px;
+  max-width: 860px;
   line-height: 1.45;
 }
 
@@ -238,6 +238,8 @@ button.secondary {
   cursor: pointer;
   user-select: none;
   transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 .cell:hover {
@@ -259,6 +261,27 @@ button.secondary {
 
 .cell.playing {
   box-shadow: 0 0 0 2px rgba(249, 199, 79, 0.6) inset, 0 0 18px rgba(249, 199, 79, 0.22);
+}
+
+.cell .stack {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  padding: 2px;
+}
+
+.cell .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(9, 20, 13, 0.85);
+}
+
+.cell.single .dot:nth-child(1) {
+  width: 10px;
+  height: 10px;
 }
 
 .keyboard-wrap {
@@ -287,8 +310,10 @@ button.secondary {
   background: linear-gradient(180deg, rgba(125,211,252,0.18), rgba(125,211,252,0.08));
 }
 
-.piano-key:hover {
+.piano-key:hover,
+.piano-key.active {
   border-color: rgba(125,211,252,0.4);
+  box-shadow: 0 0 0 1px rgba(125,211,252,0.22), 0 0 18px rgba(125,211,252,0.14);
 }
 
 .keyboard-help,
