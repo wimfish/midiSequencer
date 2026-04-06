@@ -104,7 +104,14 @@ body.fm-prototype-page input {
 ========================================= */
 
 .fm-sequencer-card {
-  overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.45) 0 4px, transparent 4px 60px),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.42) 0 4px, transparent 4px 60px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.35) 0 1px, transparent 1px 30px),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.32) 0 1px, transparent 1px 30px),
+    radial-gradient(circle at 18% 22%, rgba(255, 220, 140, 0.18), transparent 20%),
+    radial-gradient(circle at 78% 70%, rgba(255, 240, 180, 0.14), transparent 22%),
+    linear-gradient(180deg, #b8842a 0%, #8f651c 100%) !important;
 }
 
 .fm-sequencer-inner {
