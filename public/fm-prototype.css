@@ -684,3 +684,54 @@ body.fm-prototype-page.mode-live .cell.cursor {
     align-items: start;
   }
 }
+/* structuur meer gelijk aan index.html, maar FM styling blijft apart */
+body.theme-80s.fm-prototype-page .app-shell.fm-shell {
+  width: min(var(--fm-shell-width), calc(100vw - 18px));
+  margin: 6px auto 0;
+  display: grid;
+  gap: 16px;
+}
+
+body.theme-80s.fm-prototype-page .topbar.fm-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 18px;
+  align-items: center;
+}
+
+body.theme-80s.fm-prototype-page .topbar-actions.fm-hero-side {
+  display: grid;
+  gap: 12px;
+  justify-items: stretch;
+}
+
+body.theme-80s.fm-prototype-page .control-stack.fm-control-stack {
+  display: block;
+}
+
+body.theme-80s.fm-prototype-page .advanced-panel.fm-advanced-panel {
+  display: grid;
+  gap: 16px;
+}
+
+body.theme-80s.fm-prototype-page .quick-bar.fm-status-panel {
+  padding: 14px 18px;
+}
+
+body.theme-80s.fm-prototype-page .quick-bar-main.fm-status-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  body.theme-80s.fm-prototype-page .topbar.fm-hero {
+    grid-template-columns: 1fr;
+  }
+
+  body.theme-80s.fm-prototype-page .quick-bar-main.fm-status-main {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
