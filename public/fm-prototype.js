@@ -13,64 +13,39 @@ const NOTE_ROWS = [
   { name: "C4", midi: 60 }
 ];
 
-const KEYBOARD_MAP = {
-  z: 48,
-  s: 49,
-  x: 50,
-  d: 51,
-  c: 52,
-  v: 53,
-  g: 54,
-  b: 55,
-  h: 56,
-  n: 57,
-  j: 58,
-  m: 59,
-  q: 60,
-  2: 61,
-  w: 62,
-  3: 63,
-  e: 64,
-  r: 65,
-  5: 66,
-  t: 67,
-  6: 68,
-  y: 69,
-  7: 70,
-  u: 71
-};
-
-const PIANO_KEYS = [
-  { label: "C3", midi: 48 },
-  { label: "C#3", midi: 49, black: true },
-  { label: "D3", midi: 50 },
-  { label: "D#3", midi: 51, black: true },
-  { label: "E3", midi: 52 },
-  { label: "F3", midi: 53 },
-  { label: "F#3", midi: 54, black: true },
-  { label: "G3", midi: 55 },
-  { label: "G#3", midi: 56, black: true },
-  { label: "A3", midi: 57 },
-  { label: "A#3", midi: 58, black: true },
-  { label: "B3", midi: 59 },
-  { label: "C4", midi: 60 },
-  { label: "C#4", midi: 61, black: true },
-  { label: "D4", midi: 62 },
-  { label: "D#4", midi: 63, black: true },
-  { label: "E4", midi: 64 },
-  { label: "F4", midi: 65 },
-  { label: "F#4", midi: 66, black: true },
-  { label: "G4", midi: 67 },
-  { label: "G#4", midi: 68, black: true },
-  { label: "A4", midi: 69 },
-  { label: "A#4", midi: 70, black: true },
-  { label: "B4", midi: 71 }
+const KEYBOARD_MAP = [
+  { key: "z", midi: 48, label: "C3" },
+  { key: "s", midi: 49, label: "C#3" },
+  { key: "x", midi: 50, label: "D3" },
+  { key: "d", midi: 51, label: "D#3" },
+  { key: "c", midi: 52, label: "E3" },
+  { key: "v", midi: 53, label: "F3" },
+  { key: "g", midi: 54, label: "F#3" },
+  { key: "b", midi: 55, label: "G3" },
+  { key: "h", midi: 56, label: "G#3" },
+  { key: "n", midi: 57, label: "A3" },
+  { key: "j", midi: 58, label: "A#3" },
+  { key: "m", midi: 59, label: "B3" },
+  { key: "q", midi: 60, label: "C4" },
+  { key: "2", midi: 61, label: "C#4" },
+  { key: "w", midi: 62, label: "D4" },
+  { key: "3", midi: 63, label: "D#4" },
+  { key: "e", midi: 64, label: "E4" },
+  { key: "r", midi: 65, label: "F4" },
+  { key: "5", midi: 66, label: "F#4" },
+  { key: "t", midi: 67, label: "G4" },
+  { key: "6", midi: 68, label: "G#4" },
+  { key: "y", midi: 69, label: "A4" },
+  { key: "7", midi: 70, label: "A#4" },
+  { key: "u", midi: 71, label: "B4" }
 ];
 
-const STORAGE_KEY = "volca-fm-prototype-v2";
+const KEY_TO_MIDI = Object.fromEntries(KEYBOARD_MAP.map(item => [item.key, item.midi]));
+const STORAGE_KEY = "volca-fm-prototype-v3";
 const MAX_NOTES_PER_STEP = 3;
 
 const state = {
+  mode: "step",
   steps: 16,
   tempo: 132,
   gate: 70,
@@ -95,6 +70,7 @@ const els = {
   clearBtn: document.getElementById("clearBtn"),
   saveBtn: document.getElementById("saveBtn"),
   loadBtn: document.getElementById("loadBtn"),
+  modeSelect: document.getElementById("modeSelect"),
   tempoInput: document.getElementById("tempoInput"),
   stepCountSelect: document.getElementById("stepCountSelect"),
   gateInput: document.getElementById("gateInput"),
@@ -107,7 +83,8 @@ const els = {
   gridHeader: document.getElementById("gridHeader"),
   noteLabels: document.getElementById("noteLabels"),
   grid: document.getElementById("grid"),
-  pianoKeys: document.getElementById("pianoKeys")
+  pianoKeys: document.getElementById("pianoKeys"),
+  modeHint: document.getElementById("modeHint")
 };
 
 function setStatus(text) {
@@ -126,7 +103,7 @@ function noteNameFromMidi(midi) {
 
 function normalizeStep(step) {
   if (!Array.isArray(step)) return [];
-  const unique = [...new Set(step.map((n) => Number(n)).filter((n) => Number.isFinite(n)))];
+  const unique = [...new Set(step.map(Number).filter(Number.isFinite))];
   return unique.slice(0, MAX_NOTES_PER_STEP).sort((a, b) => a - b);
 }
 
@@ -142,23 +119,11 @@ function setStepNotes(stepIndex, notes) {
   state.pattern[stepIndex] = normalizeStep(notes);
 }
 
-function toggleStepOnOff(stepIndex) {
-  const current = getStepNotes(stepIndex);
-  if (current.length) {
-    setStepNotes(stepIndex, []);
-    setStatus(`Step ${stepIndex + 1} uit`);
-  } else {
-    setStepNotes(stepIndex, [60 + Number(state.octaveShift)]);
-    setStatus(`Step ${stepIndex + 1} aan`);
-  }
-  render();
-}
-
 function addNoteToStep(stepIndex, midiNote) {
   const notes = getStepNotes(stepIndex);
 
   if (notes.includes(midiNote)) {
-    setStepNotes(stepIndex, notes.filter((note) => note !== midiNote));
+    setStepNotes(stepIndex, notes.filter(note => note !== midiNote));
     setStatus(`Step ${stepIndex + 1} noot verwijderd: ${noteNameFromMidi(midiNote)}`);
   } else {
     const next = [...notes, midiNote];
@@ -169,6 +134,18 @@ function addNoteToStep(stepIndex, midiNote) {
     setStatus(`Step ${stepIndex + 1} + ${noteNameFromMidi(midiNote)}`);
   }
 
+  render();
+}
+
+function toggleStepOnOff(stepIndex) {
+  const current = getStepNotes(stepIndex);
+  if (current.length) {
+    setStepNotes(stepIndex, []);
+    setStatus(`Step ${stepIndex + 1} uit`);
+  } else {
+    setStepNotes(stepIndex, [60 + Number(state.octaveShift)]);
+    setStatus(`Step ${stepIndex + 1} aan`);
+  }
   render();
 }
 
@@ -212,6 +189,13 @@ function updateCursorInfo() {
   els.cursorInfo.textContent = `Step ${state.cursorStep + 1} · ${notes.length ? notes.map(noteNameFromMidi).join(" / ") : "leeg"}`;
 }
 
+function updateModeHint() {
+  els.modeHint.textContent =
+    state.mode === "step"
+      ? "Step mode: klik noten in het grid of gebruik toetsen om de geselecteerde step op te bouwen."
+      : "Live mode: toetsen spelen alleen live noten en wijzigen de sequencer niet.";
+}
+
 function buildHeader() {
   els.gridHeader.innerHTML = "";
   for (let i = 0; i < state.steps; i += 1) {
@@ -246,13 +230,12 @@ function renderGrid() {
 
       const stepNotes = getStepNotes(stepIndex);
       const rowMidi = row.midi + Number(state.octaveShift);
-      const isActiveInRow = stepNotes.includes(rowMidi);
+      const isNoteHere = stepNotes.includes(rowMidi);
       const isCursor = state.cursorStep === stepIndex;
-      const isPlaying = state.isPlaying && state.currentStep === stepIndex;
 
-      cell.className = `cell${stepNotes.length ? " active" : ""}${stepNotes.length === 1 ? " single" : ""}${isCursor ? " cursor" : ""}${isPlaying ? " playing" : ""}`;
+      cell.className = `cell${isCursor ? " cursor" : ""}${isNoteHere ? " has-note" : ""}`;
 
-      if (isActiveInRow) {
+      if (isNoteHere) {
         const stack = document.createElement("div");
         stack.className = "stack";
 
@@ -267,7 +250,14 @@ function renderGrid() {
 
       cell.addEventListener("click", () => {
         state.cursorStep = stepIndex;
-        addNoteToStep(stepIndex, rowMidi);
+
+        if (state.mode === "step") {
+          addNoteToStep(stepIndex, rowMidi);
+        } else {
+          previewChord([rowMidi], 112, 180);
+          setStatus(`Live: ${noteNameFromMidi(rowMidi)}`);
+          render();
+        }
       });
 
       rowEl.appendChild(cell);
@@ -280,16 +270,35 @@ function renderGrid() {
 function renderPianoKeys() {
   els.pianoKeys.innerHTML = "";
 
-  PIANO_KEYS.forEach((keyDef) => {
+  KEYBOARD_MAP.forEach((item) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = `piano-key${keyDef.black ? " black" : ""}`;
-    btn.textContent = keyDef.label;
+    const black = item.label.includes("#");
+    btn.className = `piano-key${black ? " black" : ""}`;
+    btn.dataset.key = item.key;
+
+    const note = document.createElement("div");
+    note.className = "note";
+    note.textContent = item.label;
+
+    const keybind = document.createElement("div");
+    keybind.className = "keybind";
+    keybind.textContent = `${item.key.toUpperCase()} = ${item.label}`;
+
+    btn.appendChild(note);
+    btn.appendChild(keybind);
 
     btn.addEventListener("click", () => {
-      const midi = clamp(keyDef.midi + Number(state.octaveShift), 36, 96);
-      addNoteToStep(state.cursorStep, midi);
-      previewChord([midi], 110, 180);
+      const midi = clamp(item.midi + Number(state.octaveShift), 36, 96);
+
+      if (state.mode === "step") {
+        addNoteToStep(state.cursorStep, midi);
+      } else {
+        previewChord([midi], 112, 180);
+        setStatus(`Live: ${noteNameFromMidi(midi)}`);
+      }
+
+      flashPianoKey(item.key);
     });
 
     els.pianoKeys.appendChild(btn);
@@ -302,6 +311,7 @@ function render() {
   renderGrid();
   renderPianoKeys();
   updateCursorInfo();
+  updateModeHint();
 }
 
 function getMidiOutput() {
@@ -366,7 +376,6 @@ function previewChord(notes, velocity = 100, durationMs = 180) {
     osc2.type = "triangle";
     osc1.frequency.value = midiToFrequency(midiNote);
     osc2.frequency.value = midiToFrequency(midiNote) * 2;
-
     gain.gain.value = 1 / Math.max(notes.length, 1);
 
     osc1.connect(gain);
@@ -425,6 +434,7 @@ function restartPlaybackIfNeeded() {
 
 function savePattern() {
   const payload = {
+    mode: state.mode,
     steps: state.steps,
     tempo: state.tempo,
     gate: state.gate,
@@ -445,6 +455,7 @@ function loadPattern() {
 
   try {
     const data = JSON.parse(raw);
+    state.mode = data.mode || "step";
     state.steps = Number(data.steps) || 16;
     state.tempo = Number(data.tempo) || 132;
     state.gate = Number(data.gate) || 70;
@@ -452,6 +463,7 @@ function loadPattern() {
     state.pattern = Array.from({ length: state.steps }, (_, i) => normalizeStep(data.pattern?.[i] || []));
     state.midiChannel = Number(data.midiChannel) || 1;
 
+    els.modeSelect.value = state.mode;
     els.stepCountSelect.value = String(state.steps);
     els.tempoInput.value = String(state.tempo);
     els.gateInput.value = String(state.gate);
@@ -522,23 +534,27 @@ function moveCursor(delta) {
   render();
 }
 
-function highlightLiveKey(key) {
-  const buttons = [...els.pianoKeys.querySelectorAll(".piano-key")];
-  buttons.forEach((btn) => {
-    if (btn.textContent.toLowerCase() === key.toLowerCase()) {
-      btn.classList.add("active");
-      window.setTimeout(() => btn.classList.remove("active"), 140);
-    }
-  });
+function flashPianoKey(key) {
+  const btn = els.pianoKeys.querySelector(`[data-key="${key}"]`);
+  if (!btn) return;
+  btn.classList.add("active");
+  window.setTimeout(() => btn.classList.remove("active"), 140);
 }
 
-function playLiveNoteFromKey(key) {
-  const mapped = KEYBOARD_MAP[key];
+function handleMappedKey(lower) {
+  const mapped = KEY_TO_MIDI[lower];
   if (mapped === undefined) return false;
 
   const midi = clamp(mapped + Number(state.octaveShift), 36, 96);
-  addNoteToStep(state.cursorStep, midi);
-  previewChord([midi], 112, 180);
+
+  if (state.mode === "step") {
+    addNoteToStep(state.cursorStep, midi);
+  } else {
+    previewChord([midi], 112, 180);
+    setStatus(`Live: ${noteNameFromMidi(midi)}`);
+  }
+
+  flashPianoKey(lower);
   return true;
 }
 
@@ -552,6 +568,12 @@ function bindEvents() {
   els.clearBtn.addEventListener("click", clearPattern);
   els.saveBtn.addEventListener("click", savePattern);
   els.loadBtn.addEventListener("click", loadPattern);
+
+  els.modeSelect.addEventListener("change", () => {
+    state.mode = els.modeSelect.value;
+    render();
+    setStatus(state.mode === "step" ? "Step mode actief" : "Live mode actief");
+  });
 
   els.tempoInput.addEventListener("change", () => {
     state.tempo = clamp(Number(els.tempoInput.value) || 132, 40, 240);
@@ -594,16 +616,13 @@ function bindEvents() {
     const typing = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
     const lower = event.key.toLowerCase();
 
-    if (typing) {
-      if (event.code === "Space") return;
-      return;
-    }
+    if (typing) return;
 
-    if (KEYBOARD_MAP[lower] !== undefined) {
+    if (KEY_TO_MIDI[lower] !== undefined) {
       if (state.heldKeys.has(lower)) return;
       state.heldKeys.add(lower);
       event.preventDefault();
-      playLiveNoteFromKey(lower);
+      handleMappedKey(lower);
       return;
     }
 
@@ -626,19 +645,19 @@ function bindEvents() {
       return;
     }
 
-    if (event.key === "ArrowUp") {
+    if (state.mode === "step" && event.key === "ArrowUp") {
       event.preventDefault();
       transposeTopNote(state.cursorStep, 1);
       return;
     }
 
-    if (event.key === "ArrowDown") {
+    if (state.mode === "step" && event.key === "ArrowDown") {
       event.preventDefault();
       transposeTopNote(state.cursorStep, -1);
       return;
     }
 
-    if (event.key === "Enter") {
+    if (state.mode === "step" && event.key === "Enter") {
       event.preventDefault();
       toggleStepOnOff(state.cursorStep);
     }

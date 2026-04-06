@@ -9,7 +9,6 @@
   --accent: #7dd3fc;
   --accent-2: #f9c74f;
   --active: #69f0ae;
-  --danger: #ff6b6b;
   --shadow: 0 14px 40px rgba(0, 0, 0, 0.25);
   --radius: 18px;
   --step-size: 44px;
@@ -246,21 +245,15 @@ button.secondary {
   border-color: rgba(255,255,255,0.18);
 }
 
-.cell.active {
-  background:
-    linear-gradient(180deg, rgba(105,240,174,0.34), rgba(105,240,174,0.18));
-  border-color: rgba(105,240,174,0.55);
-  color: #09140d;
-  font-weight: 700;
-}
-
 .cell.cursor {
   outline: 2px solid rgba(255,255,255,0.95);
   outline-offset: 1px;
 }
 
-.cell.playing {
-  box-shadow: 0 0 0 2px rgba(249, 199, 79, 0.6) inset, 0 0 18px rgba(249, 199, 79, 0.22);
+.cell.has-note {
+  background:
+    linear-gradient(180deg, rgba(105,240,174,0.34), rgba(105,240,174,0.18));
+  border-color: rgba(105,240,174,0.55);
 }
 
 .cell .stack {
@@ -276,12 +269,7 @@ button.secondary {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: rgba(9, 20, 13, 0.85);
-}
-
-.cell.single .dot:nth-child(1) {
-  width: 10px;
-  height: 10px;
+  background: rgba(9, 20, 13, 0.88);
 }
 
 .keyboard-wrap {
@@ -300,10 +288,13 @@ button.secondary {
 }
 
 .piano-key {
-  min-width: 72px;
-  padding: 14px 12px;
+  min-width: 86px;
+  padding: 12px 10px;
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+  display: grid;
+  gap: 4px;
+  justify-items: center;
 }
 
 .piano-key.black {
@@ -314,6 +305,15 @@ button.secondary {
 .piano-key.active {
   border-color: rgba(125,211,252,0.4);
   box-shadow: 0 0 0 1px rgba(125,211,252,0.22), 0 0 18px rgba(125,211,252,0.14);
+}
+
+.piano-key .note {
+  font-weight: 700;
+}
+
+.piano-key .keybind {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .keyboard-help,

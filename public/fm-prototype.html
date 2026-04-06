@@ -12,9 +12,8 @@
       <div>
         <h1>Volca FM Prototype</h1>
         <p class="sub">
-          Aparte testversie voor Volca FM. Maximaal 3 noten per step.
-          Links/rechts = step kiezen, Enter = step aan/uit, pijlen omhoog/omlaag = bovenste noot transponeren.
-          Live keyboard: <strong>Z S X D C V G B H N J M</strong> en <strong>Q 2 W 3 E R 5 T 6 Y 7 U</strong>.
+          Twee modi: <strong>Step</strong> en <strong>Live</strong>. In Step programmeer je noten per step
+          (max 3 per kolom). In Live speel je via het toetsenbord zonder direct steps te wijzigen.
         </p>
       </div>
 
@@ -29,6 +28,14 @@
 
     <section class="panel-row">
       <section class="card controls">
+        <div class="field">
+          <label for="modeSelect">Mode</label>
+          <select id="modeSelect">
+            <option value="step" selected>Step</option>
+            <option value="live">Live</option>
+          </select>
+        </div>
+
         <div class="field">
           <label for="tempoInput">BPM</label>
           <input id="tempoInput" type="number" min="40" max="240" value="132" />
@@ -77,8 +84,10 @@
         </div>
 
         <div class="field">
-          <label>Live keys</label>
-          <div class="hint-line">Z-row = octaaf lager, Q-row = octaaf hoger</div>
+          <label>Info</label>
+          <div class="hint-line" id="modeHint">
+            Step mode: klik noten in het grid om steps op te bouwen.
+          </div>
         </div>
       </section>
     </section>
@@ -100,8 +109,7 @@
       <div class="keyboard-title">Live performance toetsen</div>
       <div class="piano-keys" id="pianoKeys"></div>
       <div class="keyboard-help">
-        Klik op toetsen of gebruik je computertoetsenbord. Een step kan maximaal 3 noten bevatten.
-        Als je een 4e toevoegt, wordt de oudste vervangen.
+        In <strong>Live</strong> mode speel je alleen noten. In <strong>Step</strong> mode voeg je noten toe aan de geselecteerde step.
       </div>
     </section>
   </div>
