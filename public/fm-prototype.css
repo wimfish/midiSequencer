@@ -337,9 +337,9 @@ body.fm-prototype-page .cell.flash-denied {
 }
 
 .piano-stage {
-  position: relative;
-  width: max-content;
-  margin: 0 auto;
+    position: relative;
+    width: max-content;
+    margin: -15px auto auto;
 }
 
 .piano-row-white {
