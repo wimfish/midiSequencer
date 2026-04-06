@@ -1,46 +1,48 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Volca FM Prototype</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="fm-prototype.css" />
 </head>
-<body class="fm-prototype-page">
+<body class="theme-80s fm-prototype-page">
   <div class="app-shell fm-shell">
-    <section class="card topbar fm-topbar">
+    <header class="topbar card fm-topbar">
       <div class="fm-title-block">
         <h1>Volca FM Prototype</h1>
         <p class="sub">
-          Twee modi: Step en Live. In Step programmeer je noten per step
+          Twee modi: <strong>Step</strong> en <strong>Live</strong>. In Step programmeer je noten per step
           (max 3 per kolom). In Live speel je melodisch via toetsenbord of piano.
         </p>
       </div>
 
-      <div class="topbar-actions fm-actions">
+      <div class="topbar-actions fm-topbar-actions">
         <button id="playBtn" class="accent" type="button">Play</button>
         <button id="stopBtn" class="secondary" type="button">Stop</button>
         <button id="clearBtn" class="secondary" type="button">Clear</button>
         <button id="saveBtn" class="secondary" type="button">Save</button>
         <button id="loadBtn" class="secondary" type="button">Load</button>
       </div>
-    </section>
+    </header>
 
-    <section class="fm-panels">
+    <section class="fm-control-grid">
       <section class="card fm-panel">
-        <div class="fm-panel-title">Sequencer</div>
+        <div class="fm-panel-head">
+          <div class="fm-panel-title">Sequencer</div>
+        </div>
 
         <div class="fm-fields">
           <div class="field">
             <label for="modeSelect">Mode</label>
             <select id="modeSelect">
-              <option value="step">Step</option>
+              <option value="step" selected>Step</option>
               <option value="live">Live</option>
             </select>
           </div>
 
-          <div class="field small">
+          <div class="field small bpm-field">
             <label for="tempoInput">BPM</label>
             <input id="tempoInput" type="number" min="40" max="240" value="132" />
           </div>
@@ -71,9 +73,11 @@
       </section>
 
       <section class="card fm-panel">
-        <div class="fm-panel-title">MIDI</div>
+        <div class="fm-panel-head">
+          <div class="fm-panel-title">MIDI</div>
+        </div>
 
-        <div class="fm-fields midi-fields">
+        <div class="fm-fields fm-midi-fields">
           <label class="field field-checkbox" for="midiEnable">
             <span>MIDI</span>
             <input id="midiEnable" type="checkbox" checked />
@@ -93,20 +97,22 @@
 
           <div class="field field-info">
             <label>Info</label>
-            <div class="hint-line" id="modeHint">
-              Step mode: klik noten in het grid om steps op te bouwen.
+            <div class="fm-info-box" id="modeHint">
+              Step mode: klik noten in het grid of op de piano om steps op te bouwen.
             </div>
           </div>
         </div>
       </section>
     </section>
 
-    <section class="card status-bar fm-status-bar">
-      <div id="statusText">Klaar</div>
-      <div id="cursorInfo">Step 1 · leeg</div>
+    <section class="card fm-status-bar">
+      <div class="status" id="statusText">Klaar</div>
+      <div class="fm-cursor-info" id="cursorInfo">Step 1 · cursor C4 · leeg</div>
     </section>
 
-    <section class="card sequencer-wrap fm-sequencer-wrap">
+    <section class="card fm-sequencer-card">
+      <div class="fm-sequencer-topline"></div>
+
       <div class="grid-header" id="gridHeader"></div>
 
       <div class="grid-wrap">
@@ -115,17 +121,19 @@
       </div>
     </section>
 
-    <section class="card keyboard-wrap fm-keyboard-wrap">
-      <div class="keyboard-header">
+    <section class="card keyboard-wrap fm-keyboard-card">
+      <div class="fm-keyboard-head">
         <div class="keyboard-title">Live Keyboard</div>
         <div class="keyboard-help">
-          Gebruik Z-M en Q-U op je toetsenbord, of klik op de piano.
+          Gebruik <strong>Z–M</strong> en <strong>Q–U</strong> op je toetsenbord, of klik op de piano.
         </div>
       </div>
 
-      <div class="piano-stage">
-        <div class="piano-row piano-row-white" id="pianoWhiteKeys"></div>
-        <div class="piano-row piano-row-black" id="pianoBlackKeys"></div>
+      <div class="fm-piano-shell">
+        <div class="piano-stage">
+          <div class="piano-row piano-row-white" id="pianoWhiteKeys"></div>
+          <div class="piano-row piano-row-black" id="pianoBlackKeys"></div>
+        </div>
       </div>
     </section>
   </div>

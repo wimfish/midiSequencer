@@ -70,7 +70,7 @@ const PIANO_LAYOUT = [
 ];
 
 const KEY_TO_MIDI = Object.fromEntries(KEYBOARD_MAP.map(item => [item.key, item.midi]));
-const STORAGE_KEY = "volca-fm-prototype-v7";
+const STORAGE_KEY = "volca-fm-prototype-v8";
 const MAX_NOTES_PER_STEP = 3;
 
 const state = {
@@ -82,7 +82,7 @@ const state = {
   isPlaying: false,
   currentStep: 0,
   cursorStep: 0,
-  cursorRow: BASE_NOTE_ROWS.findIndex(row => row.midi === 60),
+  cursorRow: BASE_NOTE_ROWS.findIndex((row) => row.midi === 60),
   pattern: Array.from({ length: 16 }, () => []),
   midiEnabled: true,
   midiAccess: null,
@@ -134,7 +134,7 @@ function noteNameFromMidi(midi) {
 }
 
 function getVisibleRows() {
-  return BASE_NOTE_ROWS.map(row => {
+  return BASE_NOTE_ROWS.map((row) => {
     const midi = row.midi + Number(state.octaveShift);
     return {
       midi,
@@ -145,19 +145,19 @@ function getVisibleRows() {
 
 function updateGridScale() {
   const totalWidth = window.innerWidth;
-  const available = Math.min(1340, Math.max(720, totalWidth - 90));
+  const available = Math.min(1360, Math.max(720, totalWidth - 110));
 
-  const labelWidth = state.steps >= 32 ? 62 : 74;
+  const labelWidth = state.steps >= 32 ? 64 : 74;
   const gap = state.steps >= 32 ? 3 : 4;
   const minStep = state.steps >= 32 ? 22 : state.steps >= 24 ? 28 : 44;
-  const computedStep = Math.floor((available - labelWidth - 8 - (gap * (state.steps - 1))) / state.steps);
+  const computedStep = Math.floor((available - labelWidth - 12 - (gap * (state.steps - 1))) / state.steps);
   const stepSize = clamp(computedStep, minStep, 44);
   const rowHeight = stepSize >= 40 ? 34 : stepSize >= 30 ? 30 : 26;
 
-  document.documentElement.style.setProperty("--label-width", `${labelWidth}px`);
-  document.documentElement.style.setProperty("--grid-gap", `${gap}px`);
-  document.documentElement.style.setProperty("--step-size", `${stepSize}px`);
-  document.documentElement.style.setProperty("--row-height", `${rowHeight}px`);
+  document.documentElement.style.setProperty("--fm-label-width", `${labelWidth}px`);
+  document.documentElement.style.setProperty("--fm-grid-gap", `${gap}px`);
+  document.documentElement.style.setProperty("--fm-step-size", `${stepSize}px`);
+  document.documentElement.style.setProperty("--fm-row-height", `${rowHeight}px`);
 }
 
 function normalizeStep(step) {
@@ -202,7 +202,7 @@ function toggleNoteInStep(stepIndex, midiNote) {
   const notes = getStepNotes(stepIndex);
 
   if (notes.includes(midiNote)) {
-    setStepNotes(stepIndex, notes.filter(note => note !== midiNote));
+    setStepNotes(stepIndex, notes.filter((note) => note !== midiNote));
     setStatus(`Step ${stepIndex + 1} noot verwijderd: ${noteNameFromMidi(midiNote)}`);
     render();
     return true;
@@ -228,7 +228,7 @@ function clearPattern() {
   state.pattern = createEmptyPattern(state.steps);
   state.currentStep = 0;
   state.cursorStep = 0;
-  state.cursorRow = BASE_NOTE_ROWS.findIndex(row => row.midi === 60);
+  state.cursorRow = BASE_NOTE_ROWS.findIndex((row) => row.midi === 60);
   render();
   setStatus("Pattern gewist");
 }
@@ -336,7 +336,9 @@ function buildPiano() {
   els.pianoWhiteKeys.innerHTML = "";
   els.pianoBlackKeys.innerHTML = "";
 
-  const whiteWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--white-key-width")) || 56;
+  const rootStyle = getComputedStyle(document.documentElement);
+  const whiteWidth = parseFloat(rootStyle.getPropertyValue("--fm-white-key-width")) || 58;
+  const blackWidth = parseFloat(rootStyle.getPropertyValue("--fm-black-key-width")) || 34;
 
   PIANO_LAYOUT.forEach((item) => {
     const shiftedMidi = item.midi + Number(state.octaveShift);
@@ -366,7 +368,7 @@ function buildPiano() {
     if (item.kind === "white") {
       els.pianoWhiteKeys.appendChild(btn);
     } else {
-      btn.style.left = `${(item.leftIndex + 1) * whiteWidth - (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--black-key-width")) || 34) / 2}px`;
+      btn.style.left = `${(item.leftIndex + 1) * whiteWidth - blackWidth / 2}px`;
       els.pianoBlackKeys.appendChild(btn);
     }
   });
