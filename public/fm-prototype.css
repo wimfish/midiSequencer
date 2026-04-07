@@ -107,7 +107,7 @@ body.fm-prototype-page input {
 /* buitenste card behoudt drum/metal look */
 body.fm-prototype-page .fm-sequencer-card {
   overflow: hidden;
-  padding: 12px;
+  padding: 30px;
 }
 
 /* binnenvlak = oker pcb */
