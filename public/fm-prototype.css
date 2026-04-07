@@ -1,13 +1,17 @@
 @import url('https://fonts.googleapis.com/css2?family=Agdasima:wght@400;700&display=swap');
 
+/* =========================================
+   CSS VARIABELEN
+========================================= */
+
 :root {
   --fm-shell-width: 1700px;
-
-  --fm-note-label-width: 58px;
-  --fm-grid-step-width: 56px;
-  --fm-grid-row-height: 28px;
-  --fm-grid-gap: 3px;
-  --fm-grid-radius: 10px;
+  --fm-label-width: 72px;
+  --fm-step-size: 46px;
+  --fm-row-height: 32px;
+  --fm-grid-gap: 4px;
+  --fm-step-count: 16;
+  --fm-row-count: 12;
 
   --fm-white-key-width: 68px;
   --fm-white-key-height: 164px;
@@ -15,15 +19,12 @@
   --fm-black-key-height: 94px;
   --fm-white-key-gap: 2px;
 
-  --fm-step-glow: rgba(255, 214, 102, 0.34);
-  --fm-line: rgba(115, 87, 51, 0.30);
-
-  --fm-white-key: #efe8db;
-  --fm-white-key-line: #b5a891;
-  --fm-black-key: #141311;
-  --fm-black-key-top: #3b3229;
-  --fm-black-key-line: #5b4a39;
+  --fm-line: rgba(115,87,51,0.30);
 }
+
+/* =========================================
+   FONT
+========================================= */
 
 body.fm-prototype-page {
   overflow-x: hidden;
@@ -32,10 +33,6 @@ body.fm-prototype-page {
 body.fm-prototype-page .app-shell {
   width: min(100%, var(--fm-shell-width));
 }
-
-/* =========================================
-   FONT
-========================================= */
 
 body.fm-prototype-page h1,
 body.fm-prototype-page h2,
@@ -49,7 +46,7 @@ body.fm-prototype-page input {
 }
 
 /* =========================================
-   TRANSPORT (knoppen breed)
+   TRANSPORT
 ========================================= */
 
 .fm-transport-buttons {
@@ -83,91 +80,63 @@ body.fm-prototype-page input {
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--fm-line);
-  background: rgba(17, 12, 8, 0.10);
+  background: rgba(17,12,8,0.10);
 }
 
 .fm-live-help {
   justify-content: flex-end;
 }
 
-/* =========================
-   FM SEQUENCER / PIANO ROLL
-========================= */
+/* =========================================
+   SEQUENCER CARD
+========================================= */
 
-body.fm-prototype-page {
-  --fm-step-count: 16;
-  --fm-row-count: 12;
-  --fm-label-width: 96px;
-  --fm-row-height: 34px;
-  --fm-grid-gap: 10px;
-
-  /* 16 blijft groot, 32 krimpt zodat alles past */
-  --fm-step-size: clamp(
-    12px,
-    calc((100vw - 340px - ((var(--fm-step-count) - 1) * var(--fm-grid-gap))) / var(--fm-step-count)),
-    50px
-  );
-}
-
-/* buitenrand weer metaal */
-body.fm-prototype-page .fm-sequencer-card,
-body.fm-prototype-page .fm-sequencer-card.fm-sequencer-card--hardware {
-  position: relative;
+body.fm-prototype-page .fm-sequencer-card {
   overflow: hidden;
-  padding: 14px 16px 16px;
-  margin: 20px 0 10px;
-  border-radius: 18px;
-  border: 1px solid rgba(86, 74, 60, 0.95);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.03) 16%, rgba(0,0,0,0.12) 100%),
-    linear-gradient(180deg, #8f8b85 0%, #5d5954 18%, #383532 52%, #24211f 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.20),
-    inset 0 -10px 16px rgba(0,0,0,0.28),
-    0 12px 30px rgba(0,0,0,0.24);
-}
-
-body.fm-prototype-page .fm-sequencer-card::before,
-body.fm-prototype-page .fm-sequencer-card.fm-sequencer-card--hardware::before {
-  content: "";
-  position: absolute;
-  inset: 1px;
-  border-radius: 16px;
-  pointer-events: none;
-  background:
-    linear-gradient(90deg, rgba(255,255,255,0.06), transparent 12%, transparent 88%, rgba(0,0,0,0.16)),
-    linear-gradient(180deg, rgba(255,255,255,0.05), transparent 28%, rgba(0,0,0,0.08));
+  padding: 12px 18px 18px;
+  margin: 20px 0px 10px;
 }
 
 body.fm-prototype-page .fm-sequencer-card .fm-section-title {
-  position: relative;
-  z-index: 2;
   width: 100%;
   text-align: left;
   margin-bottom: 10px;
-  color: #efe8da;
-  text-shadow: 0 1px 0 rgba(0,0,0,0.8);
 }
 
-/* goudkleurig binnenpaneel */
-body.fm-prototype-page .fm-sequencer-inner,
+body.fm-prototype-page .fm-roll-frame {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* =========================================
+   PCB SURFACE
+========================================= */
+
 body.fm-prototype-page .fm-roll-surface {
   position: relative;
-  width: 100%;
   padding: 18px 18px 22px;
-  border-radius: 16px;
+  border-radius: 18px;
   border: 1px solid rgba(84, 58, 16, 0.92);
   background:
-    linear-gradient(90deg, rgba(58, 39, 10, 0.95) 0 2px, rgba(187, 149, 56, 0.28) 2px 4px, transparent 4px 54px),
-    linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 18%, rgba(0,0,0,0.10) 100%),
+    linear-gradient(90deg,
+      rgba(58, 39, 10, 0.95) 0 2px,
+      rgba(187, 149, 56, 0.28) 2px 4px,
+      transparent 4px 54px
+    ),
+    linear-gradient(180deg,
+      rgba(255,255,255,0.10) 0%,
+      rgba(255,255,255,0.02) 18%,
+      rgba(0,0,0,0.10) 100%
+    ),
     linear-gradient(180deg, #b89434 0%, #9b7723 52%, #7d5d18 100%);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.18),
-    inset 0 -18px 22px rgba(0,0,0,0.12);
-  box-sizing: border-box;
+    inset 0 -18px 22px rgba(0,0,0,0.12),
+    0 10px 30px rgba(0,0,0,0.18);
 }
 
-body.fm-prototype-page .fm-sequencer-inner::before,
 body.fm-prototype-page .fm-roll-surface::before {
   content: "";
   position: absolute;
@@ -177,84 +146,84 @@ body.fm-prototype-page .fm-roll-surface::before {
   background:
     radial-gradient(circle at 18% 22%, rgba(255,255,255,0.10), transparent 20%),
     radial-gradient(circle at 78% 62%, rgba(255,255,255,0.05), transparent 22%);
+  opacity: 0.9;
 }
 
-/* layout */
+/* =========================================
+   ROLL LAYOUT: HEADER + BODY
+   Header-spacer en note-labels zijn exact
+   --fm-label-width breed. Het grid ernaast
+   neemt de rest in via minmax(0,1fr).
+========================================= */
+
 body.fm-prototype-page .fm-roll-header {
   display: grid;
   grid-template-columns: var(--fm-label-width) minmax(0, 1fr);
-  gap: 14px;
+  gap: 10px;
   align-items: end;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
+  position: relative;
+  z-index: 1;
 }
 
 body.fm-prototype-page .fm-roll-header-spacer {
-  min-height: 1px;
+  width: var(--fm-label-width);
+  min-width: var(--fm-label-width);
 }
 
-body.fm-prototype-page .fm-roll-body,
-body.fm-prototype-page .grid-wrap {
-  display: grid !important;
+body.fm-prototype-page .fm-roll-body {
+  display: grid;
   grid-template-columns: var(--fm-label-width) minmax(0, 1fr);
-  gap: 14px;
+  gap: 10px;
   align-items: start;
-  width: 100%;
-  max-width: 100%;
-  margin: 0;
-  overflow: hidden;
-  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
 }
 
-/* header steps */
+/* =========================================
+   GRID HEADER
+========================================= */
+
 body.fm-prototype-page .grid-header {
   display: grid !important;
-  grid-template-columns: repeat(var(--fm-step-count), minmax(0, var(--fm-step-size)));
+  grid-template-columns: repeat(var(--fm-step-count), minmax(0, 1fr));
   gap: var(--fm-grid-gap);
   width: 100%;
-  min-width: 0;
-  max-width: 100%;
   margin: 0;
-  padding-left: 0;
+  padding: 0;
   box-sizing: border-box;
 }
 
 body.fm-prototype-page .step-head {
-  width: 100%;
-  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  min-width: 0;
 }
 
-/* lamp boven = alleen sequencer/playhead indicator */
 body.fm-prototype-page .step-led {
   width: 9px;
   height: 9px;
+  flex-shrink: 0;
   border-radius: 50%;
   border: 1px solid rgba(26, 20, 16, 0.96);
-  background: radial-gradient(circle at 38% 30%, rgba(88,88,88,0.18), rgba(26,24,23,0.96) 36%, rgba(10,9,9,0.99) 72%, rgba(0,0,0,1) 100%);
+  background: radial-gradient(circle at 38% 30%, rgba(88,88,88,.18), rgba(26,24,23,.96) 36%, rgba(10,9,9,.99) 72%, rgba(0,0,0,1) 100%);
   box-shadow:
-    0 0 0 1px rgba(12,10,8,0.94),
-    inset 0 1px 1px rgba(255,255,255,0.04),
-    0 0 4px rgba(0,0,0,0.42);
+    0 0 0 1px rgba(12,10,8,.94),
+    inset 0 1px 1px rgba(255,255,255,.04),
+    0 0 4px rgba(0,0,0,.42);
   transition: background 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 
-/* has-data laat lamp UIT */
 body.fm-prototype-page .step-head.has-data .step-led {
-  background: radial-gradient(circle at 38% 30%, rgba(88,88,88,0.18), rgba(26,24,23,0.96) 36%, rgba(10,9,9,0.99) 72%, rgba(0,0,0,1) 100%);
+  background: radial-gradient(circle at 35% 35%, #aef0ff 0%, #4aa8ff 42%, #0a3d91 100%);
   box-shadow:
-    0 0 0 1px rgba(12,10,8,0.94),
-    inset 0 1px 1px rgba(255,255,255,0.04),
-    0 0 4px rgba(0,0,0,0.42);
-  transform: none;
+    0 0 6px rgba(70,150,255,0.65),
+    0 0 14px rgba(70,150,255,0.28);
 }
 
-/* current/cursor/active = lopend sequencer lampje */
-body.fm-prototype-page .step-head.current .step-led,
-body.fm-prototype-page .step-head.cursor .step-led,
-body.fm-prototype-page .step-head.active .step-led {
+body.fm-prototype-page .step-head.current .step-led {
   transform: scale(1.15);
   background: radial-gradient(circle at 35% 35%, #eef9ff 0%, #8fd3ff 20%, #35a1ff 45%, #1257c4 100%);
   box-shadow:
@@ -263,64 +232,57 @@ body.fm-prototype-page .step-head.active .step-led {
     0 0 28px rgba(87,178,255,0.28);
 }
 
-/* step knop */
-body.fm-prototype-page .step-head-btn,
-body.fm-prototype-page .step-index,
-body.fm-prototype-page .step-number,
-body.fm-prototype-page .step-head button,
-body.fm-prototype-page .step-head span:last-child {
+body.fm-prototype-page .step-head-btn {
   width: 100%;
-  min-width: 0;
-  height: 54px;
-  padding: 0 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  border: 1px solid #080604;
+  height: var(--fm-row-height);
+  border-radius: 8px;
+  border: 1px solid rgba(74,61,47,0.9);
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.01) 28%, rgba(0,0,0,0.14)),
-    linear-gradient(180deg, #3d3934 0%, #1a1612 46%, #090807 100%);
-  color: #f3efdf;
-  font-size: clamp(0.62rem, calc(var(--fm-step-size) * 0.25), 1rem);
-  font-weight: 700;
+    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02) 30%, rgba(0,0,0,0.16)),
+    linear-gradient(180deg, #2b241f 0%, #12100e 100%);
+  color: #f1eadf;
+  font-size: clamp(0.65rem, 1.8cqi, 1rem);
   line-height: 1;
-  text-shadow: 0 1px 0 rgba(0,0,0,0.82);
+  white-space: nowrap;
+  overflow: hidden;
   box-shadow:
-
     inset 0 1px 0 rgba(255,255,255,0.08),
-    inset 0 -5px 7px rgba(0,0,0,0.72),
-    0 0 0 1px rgba(93,85,73,0.22),
-    0 2px 0 rgba(0,0,0,0.96);
-  box-sizing: border-box;
+    0 2px 4px rgba(0,0,0,0.28);
   transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 
-/* noten in step = knop blauw, lamp blijft uit */
 body.fm-prototype-page .step-head.has-data .step-head-btn {
-  border-color: #9ed2ff;
-  color: #f7fbff;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.08) 18%, rgba(0,0,0,0.10) 100%),
-    linear-gradient(180deg, #63b7ff 0%, #2f7dff 55%, #1849c9 100%);
+  border-color: rgba(92,154,255,0.82);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.30),
-    inset 0 -8px 12px rgba(0,0,0,0.16),
-    0 0 0 1px rgba(159,210,255,0.24),
-    0 0 14px rgba(87,178,255,0.35),
-    0 2px 6px rgba(0,0,0,0.28);
+    inset 0 1px 0 rgba(255,255,255,0.10),
+    0 0 0 1px rgba(92,154,255,0.16);
 }
 
-/* als current én has-data: knop blauw blijft, lamp loopt erboven */
-body.fm-prototype-page .step-head.current .step-head-btn,
-body.fm-prototype-page .step-head.cursor .step-head-btn,
-body.fm-prototype-page .step-head.active .step-head-btn {
+body.fm-prototype-page .step-head.cursor .step-head-btn {
+  border-color: #f0d08a;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.12),
+    0 0 0 2px rgba(240,208,138,0.22);
+}
+
+body.fm-prototype-page .step-head.current .step-head-btn {
+  border-color: #7fc0ff;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06) 28%, rgba(0,0,0,0.10)),
+    linear-gradient(180deg, #3c67a8 0%, #18345f 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.16),
+    0 0 0 1px rgba(127,192,255,0.22),
+    0 0 12px rgba(87,178,255,0.30),
+    0 2px 6px rgba(0,0,0,0.30);
   transform: translateY(-1px);
 }
 
-/* nootlabels */
-body.fm-prototype-page .note-labels,
-body.fm-prototype-page .note-labels.fm-note-buttons {
+/* =========================================
+   NOTE LABELS
+========================================= */
+
+body.fm-prototype-page .note-labels {
   display: grid !important;
   grid-template-rows: repeat(var(--fm-row-count), var(--fm-row-height));
   gap: var(--fm-grid-gap);
@@ -333,72 +295,72 @@ body.fm-prototype-page .note-label {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body.fm-prototype-page .note-label-badge {
-  width: 100%;
-  height: 100%;
-  padding: 0 10px 0 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
+  padding: 0 6px 0 8px;
   border-radius: 6px;
   border: 1px solid rgba(93, 72, 35, 0.95);
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03) 25%, rgba(0,0,0,0.10)),
-    linear-gradient(180deg, #f1e2b0 0%, #d9c58e 100%);
-  color: #2b2116;
+    linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.03) 25%, rgba(0,0,0,.10)),
+    linear-gradient(180deg, #54473a 0%, #2f2823 55%, #1a1715 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    inset 0 -5px 8px rgba(0,0,0,.45),
+    0 1px 0 rgba(0,0,0,.45);
+  color: #f3efdf;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.28),
-    inset 0 -5px 8px rgba(0,0,0,0.10),
-    0 1px 0 rgba(0,0,0,0.25);
+  text-shadow: 0 1px 0 rgba(0,0,0,.8);
   box-sizing: border-box;
 }
 
-/* grid */
-body.fm-prototype-page .grid,
-body.fm-prototype-page .grid.fm-grid-window {
+/* =========================================
+   GRID WINDOW + GRID ROWS
+========================================= */
+
+body.fm-prototype-page .grid-wrap {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+body.fm-prototype-page .grid {
   display: flex !important;
   flex-direction: column !important;
   gap: var(--fm-grid-gap);
   width: 100%;
-  min-width: 0;
   position: relative;
   z-index: 1;
 }
 
 body.fm-prototype-page .grid-row {
   display: grid !important;
-  grid-template-columns: repeat(var(--fm-step-count), minmax(0, var(--fm-step-size)));
+  grid-template-columns: repeat(var(--fm-step-count), minmax(0, 1fr));
   gap: var(--fm-grid-gap);
   width: 100%;
-  min-width: 0;
 }
 
-/* cellen met duidelijke spacing */
+/* =========================================
+   CELLS
+========================================= */
+
 body.fm-prototype-page .cell {
   position: relative;
   width: 100%;
-  min-width: 0;
   height: var(--fm-row-height);
+  min-width: 0;
   min-height: var(--fm-row-height);
   border-radius: 6px;
   border: 1px solid #080604;
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.01) 28%, rgba(0,0,0,0.14)),
+    radial-gradient(circle at 50% 56%, rgba(20,20,20,.98) 0 28%, rgba(70,70,70,.85) 29%, rgba(11,11,11,.98) 38%, transparent 39%),
+    radial-gradient(circle at 50% 50%, transparent 0 38%, rgba(10,10,10,.04) 38% 100%),
     linear-gradient(180deg, #3d3934 0%, #1a1612 46%, #090807 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    inset 0 -5px 7px rgba(0,0,0,0.72),
-    0 0 0 1px rgba(93,85,73,0.22),
-    0 2px 0 rgba(0,0,0,0.96),
-    0 4px 6px rgba(0,0,0,0.32);
-  box-sizing: border-box;
+    inset 0 1px 0 rgba(255,255,255,.08),
+    inset 0 -5px 7px rgba(0,0,0,.72),
+    0 0 0 1px rgba(93,85,73,.22),
+    0 2px 0 rgba(0,0,0,.96),
+    0 4px 6px rgba(0,0,0,.32);
   transition: filter 0.12s ease, transform 0.08s ease, box-shadow 0.12s ease, border-color 0.12s ease;
 }
 
@@ -426,8 +388,26 @@ body.fm-prototype-page .cell:active {
   transform: translateY(2px);
 }
 
+body.fm-prototype-page .cell.has-note {
+  border-color: #4d4337;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 38%, rgba(22,12,8,.06) 38% 100%),
+    linear-gradient(180deg, #4a4640 0%, #221c17 48%, #090706 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    inset 0 -5px 7px rgba(0,0,0,.72),
+    0 0 0 1px rgba(93,85,73,.24),
+    0 2px 0 rgba(0,0,0,.96),
+    0 4px 6px rgba(0,0,0,.34);
+}
+
 body.fm-prototype-page .cell.has-note::after {
-  background: radial-gradient(circle, rgba(180,255,180,1) 0%, rgba(0,255,120,1) 35%, rgba(0,180,90,1) 70%, rgba(0,60,30,1) 100%);
+  background: radial-gradient(circle,
+    rgba(180,255,180,1) 0%,
+    rgba(0,255,120,1) 35%,
+    rgba(0,180,90,1) 70%,
+    rgba(0,60,30,1) 100%
+  );
   box-shadow:
     0 0 6px rgba(0,255,120,0.9),
     0 0 14px rgba(0,255,120,0.6),
@@ -435,13 +415,14 @@ body.fm-prototype-page .cell.has-note::after {
 }
 
 body.fm-prototype-page .cell.cursor {
+  outline: none;
   border-color: #5fbdb5;
   box-shadow:
-    inset 0 0 0 1px rgba(212,255,250,0.28),
-    0 0 12px rgba(75,255,227,0.20),
-    0 0 24px rgba(34,209,188,0.16),
-    0 2px 0 rgba(35,83,78,0.85),
-    0 4px 10px rgba(0,0,0,0.35);
+    inset 0 0 0 1px rgba(212,255,250,.28),
+    0 0 12px rgba(75,255,227,.20),
+    0 0 24px rgba(34,209,188,.16),
+    0 2px 0 rgba(35,83,78,.85),
+    0 4px 10px rgba(0,0,0,.35);
 }
 
 body.fm-prototype-page .cell.flash-denied {
@@ -454,7 +435,7 @@ body.fm-prototype-page .cell.flash-denied {
 }
 
 /* =========================================
-   PIANO (FIXED!)
+   PIANO
 ========================================= */
 
 .fm-piano-shell {
@@ -463,7 +444,7 @@ body.fm-prototype-page .cell.flash-denied {
   padding: 16px 18px;
   border-radius: 14px;
   border: 1px solid rgba(88,73,57,0.85);
-  background: linear-gradient(180deg, rgba(116,77,30,0.96), rgba(76,48,17,0.98));
+  background: linear-gradient(180deg, rgba(116,77,30,.96), rgba(76,48,17,.98));
   overflow-x: auto;
 }
 
@@ -526,9 +507,9 @@ body.fm-prototype-page .cell.flash-denied {
 
 @media (max-width: 900px) {
   body.fm-prototype-page {
-    --fm-label-width: 84px;
-    --fm-row-height: 30px;
-    --fm-grid-gap: 8px;
+    --fm-label-width: 62px;
+    --fm-row-height: 28px;
+    --fm-grid-gap: 3px;
   }
 
   .fm-transport-buttons {
@@ -539,422 +520,29 @@ body.fm-prototype-page .cell.flash-denied {
     grid-template-columns: 1fr;
   }
 
-  body.fm-prototype-page .step-head-btn,
-  body.fm-prototype-page .step-index,
-  body.fm-prototype-page .step-number,
-  body.fm-prototype-page .step-head button,
-  body.fm-prototype-page .step-head span:last-child {
-    height: 48px;
-  }
-}
-
-@media (max-width: 680px) {
-  body.fm-prototype-page {
-    --fm-label-width: 74px;
-    --fm-row-height: 26px;
-    --fm-grid-gap: 6px;
-  }
-
-  body.fm-prototype-page .step-head-btn,
-  body.fm-prototype-page .step-index,
-  body.fm-prototype-page .step-number,
-  body.fm-prototype-page .step-head button,
-  body.fm-prototype-page .step-head span:last-child {
-    height: 42px;
-  }
-
-  body.fm-prototype-page .step-led {
-    width: 8px;
-    height: 8px;
-  }
-
-  body.fm-prototype-page .note-label-badge {
-    font-size: 12px;
-    padding-left: 9px;
+  body.fm-prototype-page .fm-roll-surface {
+    padding: 14px 12px 18px;
   }
 }
 
 @media (max-width: 600px) {
+  body.fm-prototype-page {
+    --fm-label-width: 54px;
+    --fm-row-height: 24px;
+    --fm-grid-gap: 2px;
+  }
+
   .fm-transport-buttons {
     grid-template-columns: repeat(2, 1fr);
   }
-}
 
-/* =========================================================
-   FM PROTOTYPE - GIT ALIGNED FIX
-   Past op de actuele public/fm-prototype.html structuur:
-   .fm-sequencer-card > .fm-sequencer-inner > .fm-roll-surface
-   .fm-roll-header / .fm-roll-body / #gridHeader / #noteLabels / #grid
-   ========================================================= */
-
-/* ---------- basis variabelen ---------- */
-body.fm-prototype-page {
-  --fm-label-width: 96px;
-  --fm-row-height: 32px;
-  --fm-grid-gap: 8px;
-  --fm-step-size: clamp(
-    12px,
-    calc((100vw - 360px - ((var(--fm-step-count) - 1) * var(--fm-grid-gap))) / var(--fm-step-count)),
-    46px
-  );
-}
-
-/* ---------- buitenrand weer metaal ---------- */
-body.fm-prototype-page .fm-sequencer-card,
-body.fm-prototype-page .fm-sequencer-card.fm-sequencer-card--hardware {
-  position: relative;
-  overflow: hidden;
-  padding: 14px 16px 16px;
-  margin: 20px 0 10px;
-  border-radius: 18px;
-  border: 1px solid rgba(98, 90, 82, 0.96);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.15), rgba(255,255,255,0.04) 16%, rgba(0,0,0,0.14) 100%),
-    linear-gradient(180deg, #938f89 0%, #65615c 18%, #403d39 55%, #272421 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.20),
-    inset 0 -10px 16px rgba(0,0,0,0.28),
-    0 12px 28px rgba(0,0,0,0.24);
-}
-
-body.fm-prototype-page .fm-sequencer-card::before,
-body.fm-prototype-page .fm-sequencer-card.fm-sequencer-card--hardware::before {
-  content: "";
-  position: absolute;
-  inset: 1px;
-  border-radius: 16px;
-  pointer-events: none;
-  background:
-    linear-gradient(90deg, rgba(255,255,255,0.08), transparent 10%, transparent 90%, rgba(0,0,0,0.14)),
-    linear-gradient(180deg, rgba(255,255,255,0.05), transparent 28%, rgba(0,0,0,0.08));
-}
-
-body.fm-prototype-page .fm-sequencer-card .fm-section-title {
-  position: relative;
-  z-index: 3;
-  color: #f1eadb;
-  text-shadow: 0 1px 0 rgba(0,0,0,0.8);
-}
-
-/* ---------- oker paneel alleen binnenin ---------- */
-body.fm-prototype-page .fm-sequencer-inner.fm-roll-frame {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-body.fm-prototype-page .fm-roll-surface {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  padding: 18px 18px 22px;
-  border-radius: 14px;
-  border: 1px solid rgba(95, 64, 18, 0.88);
-  background:
-    linear-gradient(90deg, rgba(20, 12, 4, 0.34) 0 3px, transparent 3px 64px),
-    linear-gradient(0deg, rgba(20, 12, 4, 0.30) 0 3px, transparent 3px 64px),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 16px),
-    linear-gradient(0deg, rgba(0, 0, 0, 0.16) 0 1px, transparent 1px 16px),
-    radial-gradient(circle at 18% 22%, rgba(255, 222, 140, 0.12), transparent 18%),
-    radial-gradient(circle at 76% 68%, rgba(255, 236, 170, 0.08), transparent 22%),
-    linear-gradient(180deg, #c58f2d 0%, #9c6f1e 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.16),
-    inset 0 -10px 14px rgba(0,0,0,0.10);
-  box-sizing: border-box;
-}
-
-body.fm-prototype-page .fm-roll-surface::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 18% 22%, rgba(255,255,255,0.08), transparent 20%),
-    radial-gradient(circle at 78% 62%, rgba(255,255,255,0.04), transparent 22%);
-}
-
-/* ---------- header + body exact dezelfde kolomstructuur ---------- */
-body.fm-prototype-page .fm-roll-header,
-body.fm-prototype-page .fm-roll-body {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: var(--fm-label-width) minmax(0, 1fr);
-  gap: 14px;
-  align-items: start;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-body.fm-prototype-page .fm-roll-header {
-  margin-bottom: 14px;
-  align-items: end;
-}
-
-body.fm-prototype-page .fm-roll-header-spacer {
-  min-height: 1px;
-}
-
-/* ---------- step header ---------- */
-body.fm-prototype-page .grid-header {
-  display: grid !important;
-  grid-template-columns: repeat(var(--fm-step-count), minmax(0, var(--fm-step-size)));
-  gap: var(--fm-grid-gap);
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body.fm-prototype-page .step-head {
-  width: 100%;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-}
-
-body.fm-prototype-page .step-led {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 1px solid rgba(26,20,16,0.96);
-  background: radial-gradient(circle at 38% 30%, rgba(88,88,88,0.18), rgba(26,24,23,0.96) 36%, rgba(10,9,9,0.99) 72%, rgba(0,0,0,1) 100%);
-  box-shadow:
-    0 0 0 1px rgba(12,10,8,0.94),
-    inset 0 1px 1px rgba(255,255,255,0.04),
-    0 0 4px rgba(0,0,0,0.42);
-  transition: background 120ms ease, box-shadow 120ms ease, transform 120ms ease;
-}
-
-/* step heeft noten -> knop blauw, led uit */
-body.fm-prototype-page .step-head.has-data .step-led {
-  background: radial-gradient(circle at 38% 30%, rgba(88,88,88,0.18), rgba(26,24,23,0.96) 36%, rgba(10,9,9,0.99) 72%, rgba(0,0,0,1) 100%);
-  box-shadow:
-    0 0 0 1px rgba(12,10,8,0.94),
-    inset 0 1px 1px rgba(255,255,255,0.04),
-    0 0 4px rgba(0,0,0,0.42);
-  transform: none;
-}
-
-/* lopend sequencer-lampje */
-body.fm-prototype-page .step-head.current .step-led,
-body.fm-prototype-page .step-head.cursor .step-led,
-body.fm-prototype-page .step-head.active .step-led {
-  transform: scale(1.12);
-  background: radial-gradient(circle at 35% 35%, #eef9ff 0%, #8fd3ff 20%, #35a1ff 45%, #1257c4 100%);
-  box-shadow:
-    0 0 8px rgba(87,178,255,0.95),
-    0 0 18px rgba(87,178,255,0.55),
-    0 0 28px rgba(87,178,255,0.28);
-}
-
-body.fm-prototype-page .step-head-btn,
-body.fm-prototype-page .step-index,
-body.fm-prototype-page .step-number,
-body.fm-prototype-page .step-head button,
-body.fm-prototype-page .step-head span:last-child {
-  width: 100%;
-  min-width: 0;
-  height: 38px;
-  padding: 0 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  border: 1px solid #080604;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.01) 28%, rgba(0,0,0,0.14)),
-    linear-gradient(180deg, #3d3934 0%, #1a1612 46%, #090807 100%);
-  color: #f3efdf;
-  font-size: clamp(0.56rem, calc(var(--fm-step-size) * 0.24), 0.95rem);
-  font-weight: 700;
-  line-height: 1;
-  text-shadow: 0 1px 0 rgba(0,0,0,0.82);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    inset 0 -5px 7px rgba(0,0,0,0.72),
-    0 0 0 1px rgba(93,85,73,0.22),
-    0 2px 0 rgba(0,0,0,0.96);
-  box-sizing: border-box;
-}
-
-body.fm-prototype-page .step-head.has-data .step-head-btn {
-  border-color: #9ed2ff;
-  color: #f7fbff;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.08) 18%, rgba(0,0,0,0.10) 100%),
-    linear-gradient(180deg, #63b7ff 0%, #2f7dff 55%, #1849c9 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.30),
-    inset 0 -8px 12px rgba(0,0,0,0.16),
-    0 0 0 1px rgba(159,210,255,0.24),
-    0 0 14px rgba(87,178,255,0.35),
-    0 2px 6px rgba(0,0,0,0.28);
-}
-
-/* ---------- labels + grid altijd naast elkaar ---------- */
-body.fm-prototype-page .note-labels,
-body.fm-prototype-page .note-labels.fm-note-buttons {
-  display: grid !important;
-  grid-template-rows: repeat(var(--fm-row-count), var(--fm-row-height));
-  gap: var(--fm-grid-gap);
-  width: var(--fm-label-width);
-  min-width: var(--fm-label-width);
-}
-
-body.fm-prototype-page .note-label {
-  height: var(--fm-row-height);
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding-right: 4px;
-  box-sizing: border-box;
-}
-
-body.fm-prototype-page .note-label-badge {
-  min-width: 44px;
-  width: 100%;
-  height: calc(var(--fm-row-height) - 4px);
-  padding: 0 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  border: 1px solid rgba(126,107,71,0.78);
-  background: linear-gradient(180deg, #f1e2b0 0%, #d9c58e 100%);
-  color: #2b2116;
-  font-size: 0.84rem;
-  font-weight: 700;
-  line-height: 1;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.28),
-    0 1px 2px rgba(0,0,0,0.12);
-  box-sizing: border-box;
-}
-
-/* ---------- grid ---------- */
-body.fm-prototype-page .grid-wrap.fm-grid-window {
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-body.fm-prototype-page .grid {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: var(--fm-grid-gap);
-  width: 100%;
-  min-width: 0;
-}
-
-body.fm-prototype-page .grid-row {
-  display: grid !important;
-  grid-template-columns: repeat(var(--fm-step-count), minmax(0, var(--fm-step-size)));
-  gap: var(--fm-grid-gap);
-  width: 100%;
-  min-width: 0;
-}
-
-/* cells los van elkaar */
-body.fm-prototype-page .cell {
-  position: relative;
-  width: 100%;
-  min-width: 0;
-  height: var(--fm-row-height);
-  min-height: var(--fm-row-height);
-  border-radius: 8px;
-  border: 1px solid rgba(74,61,47,0.9);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02) 30%, rgba(0,0,0,0.16)),
-    linear-gradient(180deg, #2b241f 0%, #12100e 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    0 2px 4px rgba(0,0,0,0.22);
-  box-sizing: border-box;
-}
-
-body.fm-prototype-page .cell::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(40,40,40,1) 0%, rgba(10,10,10,1) 70%);
-  box-shadow:
-    inset 0 1px 1px rgba(255,255,255,0.05),
-    0 0 2px rgba(0,0,0,0.8);
-}
-
-body.fm-prototype-page .cell.has-note::after {
-  background: radial-gradient(circle, rgba(180,255,180,1) 0%, rgba(0,255,120,1) 35%, rgba(0,180,90,1) 70%, rgba(0,60,30,1) 100%);
-  box-shadow:
-    0 0 6px rgba(0,255,120,0.9),
-    0 0 14px rgba(0,255,120,0.6),
-    0 0 24px rgba(0,255,120,0.3);
-}
-
-body.fm-prototype-page .cell.cursor {
-  border-color: #5fbdb5;
-  box-shadow:
-    inset 0 0 0 1px rgba(212,255,250,0.28),
-    0 0 12px rgba(75,255,227,0.20),
-    0 0 24px rgba(34,209,188,0.16),
-    0 2px 0 rgba(35,83,78,0.85),
-    0 4px 10px rgba(0,0,0,0.35);
-}
-
-/* ---------- responsive ---------- */
-@media (max-width: 900px) {
-  body.fm-prototype-page {
-    --fm-label-width: 84px;
-    --fm-row-height: 28px;
-    --fm-grid-gap: 6px;
-  }
-
-  body.fm-prototype-page .step-head-btn,
-  body.fm-prototype-page .step-index,
-  body.fm-prototype-page .step-number,
-  body.fm-prototype-page .step-head button,
-  body.fm-prototype-page .step-head span:last-child {
-    height: 34px;
-  }
-}
-
-@media (max-width: 680px) {
-  body.fm-prototype-page {
-    --fm-label-width: 72px;
-    --fm-row-height: 24px;
-    --fm-grid-gap: 5px;
+  body.fm-prototype-page .note-label {
+    font-size: 11px;
+    padding-left: 6px;
   }
 
   body.fm-prototype-page .step-led {
     width: 8px;
     height: 8px;
-  }
-
-  body.fm-prototype-page .note-label-badge {
-    font-size: 12px;
-    padding-left: 6px;
-    padding-right: 6px;
-  }
-
-  body.fm-prototype-page .step-head-btn,
-  body.fm-prototype-page .step-index,
-  body.fm-prototype-page .step-number,
-  body.fm-prototype-page .step-head button,
-  body.fm-prototype-page .step-head span:last-child {
-    height: 28px;
   }
 }
