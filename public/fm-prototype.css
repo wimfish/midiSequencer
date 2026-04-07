@@ -581,36 +581,44 @@ body.fm-prototype-page .cell.flash-denied {
 }
 
 /* =========================================================
-   FM PROTOTYPE OVERRIDES
-   Voor actuele repo-structuur:
-   - HTML heeft .fm-sequencer-card > .fm-sequencer-inner > .grid-header + .grid-wrap
-   - gridHeader, noteLabels en grid staan direct in de bestaande markup
+   FM PROTOTYPE - GIT ALIGNED FIX
+   Past op de actuele public/fm-prototype.html structuur:
+   .fm-sequencer-card > .fm-sequencer-inner > .fm-roll-surface
+   .fm-roll-header / .fm-roll-body / #gridHeader / #noteLabels / #grid
    ========================================================= */
 
+/* ---------- basis variabelen ---------- */
 body.fm-prototype-page {
   --fm-label-width: 96px;
   --fm-row-height: 32px;
   --fm-grid-gap: 8px;
-  --fm-step-size: clamp(12px, calc((100vw - 340px - ((var(--fm-step-count) - 1) * var(--fm-grid-gap))) / var(--fm-step-count)), 46px);
+  --fm-step-size: clamp(
+    12px,
+    calc((100vw - 360px - ((var(--fm-step-count) - 1) * var(--fm-grid-gap))) / var(--fm-step-count)),
+    46px
+  );
 }
 
-/* buitenrand terug naar metaal */
-body.fm-prototype-page .fm-sequencer-card {
+/* ---------- buitenrand weer metaal ---------- */
+body.fm-prototype-page .fm-sequencer-card,
+body.fm-prototype-page .fm-sequencer-card.fm-sequencer-card--hardware {
   position: relative;
   overflow: hidden;
-  padding: 12px 16px 16px;
+  padding: 14px 16px 16px;
+  margin: 20px 0 10px;
   border-radius: 18px;
-  border: 1px solid rgba(93, 86, 78, 0.95);
+  border: 1px solid rgba(98, 90, 82, 0.96);
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.03) 14%, rgba(0,0,0,0.14) 100%),
-    linear-gradient(180deg, #8d8a85 0%, #5f5b56 20%, #3c3936 58%, #252321 100%);
+    linear-gradient(180deg, rgba(255,255,255,0.15), rgba(255,255,255,0.04) 16%, rgba(0,0,0,0.14) 100%),
+    linear-gradient(180deg, #938f89 0%, #65615c 18%, #403d39 55%, #272421 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.22),
-    inset 0 -10px 18px rgba(0,0,0,0.26),
-    0 10px 24px rgba(0,0,0,0.24);
+    inset 0 1px 0 rgba(255,255,255,0.20),
+    inset 0 -10px 16px rgba(0,0,0,0.28),
+    0 12px 28px rgba(0,0,0,0.24);
 }
 
-body.fm-prototype-page .fm-sequencer-card::before {
+body.fm-prototype-page .fm-sequencer-card::before,
+body.fm-prototype-page .fm-sequencer-card.fm-sequencer-card--hardware::before {
   content: "";
   position: absolute;
   inset: 1px;
@@ -618,27 +626,31 @@ body.fm-prototype-page .fm-sequencer-card::before {
   pointer-events: none;
   background:
     linear-gradient(90deg, rgba(255,255,255,0.08), transparent 10%, transparent 90%, rgba(0,0,0,0.14)),
-    linear-gradient(180deg, rgba(255,255,255,0.05), transparent 28%, rgba(0,0,0,0.07));
+    linear-gradient(180deg, rgba(255,255,255,0.05), transparent 28%, rgba(0,0,0,0.08));
 }
 
 body.fm-prototype-page .fm-sequencer-card .fm-section-title {
   position: relative;
-  z-index: 2;
-  color: #f2eadc;
+  z-index: 3;
+  color: #f1eadb;
   text-shadow: 0 1px 0 rgba(0,0,0,0.8);
 }
 
-/* oker paneel alleen BINNENIN */
-body.fm-prototype-page .fm-sequencer-inner {
+/* ---------- oker paneel alleen binnenin ---------- */
+body.fm-prototype-page .fm-sequencer-inner.fm-roll-frame {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body.fm-prototype-page .fm-roll-surface {
   position: relative;
   z-index: 1;
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  padding: 14px 16px 16px;
+  padding: 18px 18px 22px;
   border-radius: 14px;
-  border: 1px solid rgba(95, 64, 18, 0.85);
+  border: 1px solid rgba(95, 64, 18, 0.88);
   background:
     linear-gradient(90deg, rgba(20, 12, 4, 0.34) 0 3px, transparent 3px 64px),
     linear-gradient(0deg, rgba(20, 12, 4, 0.30) 0 3px, transparent 3px 64px),
@@ -648,21 +660,56 @@ body.fm-prototype-page .fm-sequencer-inner {
     radial-gradient(circle at 76% 68%, rgba(255, 236, 170, 0.08), transparent 22%),
     linear-gradient(180deg, #c58f2d 0%, #9c6f1e 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    inset 0 -10px 14px rgba(0, 0, 0, 0.10);
+    inset 0 1px 0 rgba(255,255,255,0.16),
+    inset 0 -10px 14px rgba(0,0,0,0.10);
   box-sizing: border-box;
 }
 
-/* header moet meeschalen, geen max-content */
+body.fm-prototype-page .fm-roll-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 22%, rgba(255,255,255,0.08), transparent 20%),
+    radial-gradient(circle at 78% 62%, rgba(255,255,255,0.04), transparent 22%);
+}
+
+/* ---------- header + body exact dezelfde kolomstructuur ---------- */
+body.fm-prototype-page .fm-roll-header,
+body.fm-prototype-page .fm-roll-body {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: var(--fm-label-width) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+body.fm-prototype-page .fm-roll-header {
+  margin-bottom: 14px;
+  align-items: end;
+}
+
+body.fm-prototype-page .fm-roll-header-spacer {
+  min-height: 1px;
+}
+
+/* ---------- step header ---------- */
 body.fm-prototype-page .grid-header {
   display: grid !important;
   grid-template-columns: repeat(var(--fm-step-count), minmax(0, var(--fm-step-size)));
   gap: var(--fm-grid-gap);
-  width: calc((var(--fm-step-count) * var(--fm-step-size)) + ((var(--fm-step-count) - 1) * var(--fm-grid-gap)));
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
-  margin: 0 0 10px auto;
-  padding-left: calc(var(--fm-label-width) + 10px);
-  box-sizing: content-box;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 body.fm-prototype-page .step-head {
@@ -671,64 +718,80 @@ body.fm-prototype-page .step-head {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
 }
 
-/* led boven = alleen sequencer indicator */
 body.fm-prototype-page .step-led {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #3e3428 0%, #1a140f 75%);
+  border: 1px solid rgba(26,20,16,0.96);
+  background: radial-gradient(circle at 38% 30%, rgba(88,88,88,0.18), rgba(26,24,23,0.96) 36%, rgba(10,9,9,0.99) 72%, rgba(0,0,0,1) 100%);
   box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.08),
-    0 1px 2px rgba(0, 0, 0, 0.35);
+    0 0 0 1px rgba(12,10,8,0.94),
+    inset 0 1px 1px rgba(255,255,255,0.04),
+    0 0 4px rgba(0,0,0,0.42);
   transition: background 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 
-/* als step data heeft: knop blauw, led uit */
+/* step heeft noten -> knop blauw, led uit */
 body.fm-prototype-page .step-head.has-data .step-led {
-  background: radial-gradient(circle at 35% 35%, #3e3428 0%, #1a140f 75%);
+  background: radial-gradient(circle at 38% 30%, rgba(88,88,88,0.18), rgba(26,24,23,0.96) 36%, rgba(10,9,9,0.99) 72%, rgba(0,0,0,1) 100%);
   box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.08),
-    0 1px 2px rgba(0, 0, 0, 0.35);
+    0 0 0 1px rgba(12,10,8,0.94),
+    inset 0 1px 1px rgba(255,255,255,0.04),
+    0 0 4px rgba(0,0,0,0.42);
   transform: none;
 }
 
+/* lopend sequencer-lampje */
 body.fm-prototype-page .step-head.current .step-led,
 body.fm-prototype-page .step-head.cursor .step-led,
 body.fm-prototype-page .step-head.active .step-led {
-  background: radial-gradient(circle at 35% 35%, #d8f0ff 0%, #57b2ff 38%, #1257c4 100%);
-  box-shadow:
-    0 0 8px rgba(87, 178, 255, 0.9),
-    0 0 18px rgba(87, 178, 255, 0.38);
   transform: scale(1.12);
+  background: radial-gradient(circle at 35% 35%, #eef9ff 0%, #8fd3ff 20%, #35a1ff 45%, #1257c4 100%);
+  box-shadow:
+    0 0 8px rgba(87,178,255,0.95),
+    0 0 18px rgba(87,178,255,0.55),
+    0 0 28px rgba(87,178,255,0.28);
 }
 
-body.fm-prototype-page .step-head-btn {
+body.fm-prototype-page .step-head-btn,
+body.fm-prototype-page .step-index,
+body.fm-prototype-page .step-number,
+body.fm-prototype-page .step-head button,
+body.fm-prototype-page .step-head span:last-child {
   width: 100%;
   min-width: 0;
-  height: var(--fm-row-height);
-  border-radius: 8px;
-  border: 1px solid rgba(74, 61, 47, 0.9);
+  height: 38px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid #080604;
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02) 30%, rgba(0,0,0,0.16)),
-    linear-gradient(180deg, #2b241f 0%, #12100e 100%);
-  color: #f1eadf;
-  font-size: clamp(0.6rem, calc(var(--fm-step-size) * 0.24), 1rem);
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.01) 28%, rgba(0,0,0,0.14)),
+    linear-gradient(180deg, #3d3934 0%, #1a1612 46%, #090807 100%);
+  color: #f3efdf;
+  font-size: clamp(0.56rem, calc(var(--fm-step-size) * 0.24), 0.95rem);
+  font-weight: 700;
   line-height: 1;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.82);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.08),
-    0 2px 4px rgba(0,0,0,0.28);
+    inset 0 -5px 7px rgba(0,0,0,0.72),
+    0 0 0 1px rgba(93,85,73,0.22),
+    0 2px 0 rgba(0,0,0,0.96);
   box-sizing: border-box;
 }
 
 body.fm-prototype-page .step-head.has-data .step-head-btn {
   border-color: #9ed2ff;
+  color: #f7fbff;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.08) 18%, rgba(0,0,0,0.10) 100%),
     linear-gradient(180deg, #63b7ff 0%, #2f7dff 55%, #1849c9 100%);
-  color: #f7fbff;
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.30),
     inset 0 -8px 12px rgba(0,0,0,0.16),
@@ -737,21 +800,9 @@ body.fm-prototype-page .step-head.has-data .step-head-btn {
     0 2px 6px rgba(0,0,0,0.28);
 }
 
-/* labels + grid moeten NAAST elkaar blijven */
-body.fm-prototype-page .grid-wrap {
-  display: grid !important;
-  grid-template-columns: var(--fm-label-width) minmax(0, 1fr);
-  gap: 10px;
-  align-items: start;
-  width: 100%;
-  max-width: 100%;
-  margin: 0;
-  overflow: hidden;
-  padding-bottom: 0;
-  box-sizing: border-box;
-}
-
-body.fm-prototype-page .note-labels {
+/* ---------- labels + grid altijd naast elkaar ---------- */
+body.fm-prototype-page .note-labels,
+body.fm-prototype-page .note-labels.fm-note-buttons {
   display: grid !important;
   grid-template-rows: repeat(var(--fm-row-count), var(--fm-row-height));
   gap: var(--fm-grid-gap);
@@ -777,15 +828,24 @@ body.fm-prototype-page .note-label-badge {
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  border: 1px solid rgba(126, 107, 71, 0.78);
+  border: 1px solid rgba(126,107,71,0.78);
   background: linear-gradient(180deg, #f1e2b0 0%, #d9c58e 100%);
   color: #2b2116;
   font-size: 0.84rem;
+  font-weight: 700;
   line-height: 1;
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.28),
     0 1px 2px rgba(0,0,0,0.12);
   box-sizing: border-box;
+}
+
+/* ---------- grid ---------- */
+body.fm-prototype-page .grid-wrap.fm-grid-window {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 body.fm-prototype-page .grid {
@@ -804,14 +864,15 @@ body.fm-prototype-page .grid-row {
   min-width: 0;
 }
 
-/* duidelijke losse cells */
+/* cells los van elkaar */
 body.fm-prototype-page .cell {
+  position: relative;
   width: 100%;
   min-width: 0;
   height: var(--fm-row-height);
   min-height: var(--fm-row-height);
   border-radius: 8px;
-  border: 1px solid rgba(74, 61, 47, 0.9);
+  border: 1px solid rgba(74,61,47,0.9);
   background:
     linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02) 30%, rgba(0,0,0,0.16)),
     linear-gradient(180deg, #2b241f 0%, #12100e 100%);
@@ -844,12 +905,30 @@ body.fm-prototype-page .cell.has-note::after {
     0 0 24px rgba(0,255,120,0.3);
 }
 
-/* 32 steps extra compact, maar nog steeds naast labels */
+body.fm-prototype-page .cell.cursor {
+  border-color: #5fbdb5;
+  box-shadow:
+    inset 0 0 0 1px rgba(212,255,250,0.28),
+    0 0 12px rgba(75,255,227,0.20),
+    0 0 24px rgba(34,209,188,0.16),
+    0 2px 0 rgba(35,83,78,0.85),
+    0 4px 10px rgba(0,0,0,0.35);
+}
+
+/* ---------- responsive ---------- */
 @media (max-width: 900px) {
   body.fm-prototype-page {
     --fm-label-width: 84px;
     --fm-row-height: 28px;
     --fm-grid-gap: 6px;
+  }
+
+  body.fm-prototype-page .step-head-btn,
+  body.fm-prototype-page .step-index,
+  body.fm-prototype-page .step-number,
+  body.fm-prototype-page .step-head button,
+  body.fm-prototype-page .step-head span:last-child {
+    height: 34px;
   }
 }
 
@@ -869,5 +948,13 @@ body.fm-prototype-page .cell.has-note::after {
     font-size: 12px;
     padding-left: 6px;
     padding-right: 6px;
+  }
+
+  body.fm-prototype-page .step-head-btn,
+  body.fm-prototype-page .step-index,
+  body.fm-prototype-page .step-number,
+  body.fm-prototype-page .step-head button,
+  body.fm-prototype-page .step-head span:last-child {
+    height: 28px;
   }
 }
