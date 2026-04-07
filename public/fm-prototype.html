@@ -122,18 +122,26 @@
       </div>
     </section>
 
-    <section class="card fm-sequencer-card">
-      <div class="fm-section-title">Piano Roll</div>
+	<section class="card fm-sequencer-card fm-sequencer-card--hardware">
+	  <div class="fm-section-title">Piano Roll</div>
 
-      <div class="fm-sequencer-inner">
-        <div class="grid-header" id="gridHeader"></div>
+	  <div class="fm-sequencer-inner fm-roll-frame">
+		<div class="fm-roll-surface">
+		  <div class="fm-roll-header">
+			<div class="fm-roll-header-spacer" aria-hidden="true"></div>
+			<div class="grid-header" id="gridHeader"></div>
+		  </div>
 
-        <div class="grid-wrap">
-          <div class="note-labels" id="noteLabels"></div>
-          <div class="grid" id="grid"></div>
-        </div>
-      </div>
-    </section>
+		  <div class="fm-roll-body">
+			<div class="note-labels fm-note-buttons" id="noteLabels"></div>
+
+			<div class="grid-wrap fm-grid-window">
+			  <div class="grid" id="grid"></div>
+			</div>
+		  </div>
+		</div>
+	  </div>
+	</section>
 
     <section class="card fm-piano-card">
       <div class="fm-section-title">Live Keyboard</div>
