@@ -802,6 +802,165 @@ body.fm-prototype-page .cell.has-note::after {
   }
 }
 
+/* =========================================
+   FM sequencer scaling + playhead emphasis
+   ========================================= */
+
+body.fm-prototype-page {
+  --fm-roll-gap: var(--fm-grid-gap);
+  --fm-roll-left: calc(var(--fm-label-width) + 10px);
+
+  /* vaste basis */
+  --fm-step-size-base: 50px;
+
+  /* beschikbare breedte op scherm */
+  --fm-step-size-fluid: calc(
+    (100vw - var(--fm-roll-left) - 64px - ((var(--fm-step-count) - 1) * var(--fm-roll-gap)))
+    / var(--fm-step-count)
+  );
+
+  /* schaalt automatisch mee, ook bij 32 steps */
+  --fm-step-size: clamp(22px, var(--fm-step-size-fluid), var(--fm-step-size-base));
+}
+
+/* header en grid moeten binnen scherm passen */
+body.fm-prototype-page .grid-header {
+  grid-template-columns: repeat(var(--fm-step-count), var(--fm-step-size));
+  width: calc(
+    (var(--fm-step-count) * var(--fm-step-size)) +
+    ((var(--fm-step-count) - 1) * var(--fm-grid-gap))
+  );
+  max-width: 100%;
+}
+
+body.fm-prototype-page .grid-wrap {
+  display: grid !important;
+  grid-template-columns: var(--fm-label-width) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+body.fm-prototype-page .grid {
+  width: 100%;
+  min-width: 0;
+}
+
+body.fm-prototype-page .grid-row {
+  grid-template-columns: repeat(var(--fm-step-count), minmax(0, var(--fm-step-size)));
+  width: 100%;
+}
+
+body.fm-prototype-page .cell {
+  width: 100%;
+  min-width: 0;
+}
+
+/* led bovenaan = playhead */
+body.fm-prototype-page .step-led {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #3e3428 0%, #1a140f 75%);
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,0.08),
+    0 1px 2px rgba(0,0,0,0.35);
+  transition: background 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+/* step heeft data, maar is niet de playhead */
+body.fm-prototype-page .step-head.has-data .step-led {
+  background: radial-gradient(circle at 35% 35%, #aef0ff 0%, #4aa8ff 42%, #0a3d91 100%);
+  box-shadow:
+    0 0 6px rgba(70,150,255,0.65),
+    0 0 14px rgba(70,150,255,0.28);
+}
+
+/* actuele playhead = led duidelijk actief */
+body.fm-prototype-page .step-head.current .step-led {
+  transform: scale(1.15);
+  background: radial-gradient(circle at 35% 35%, #eef9ff 0%, #8fd3ff 20%, #35a1ff 45%, #1257c4 100%);
+  box-shadow:
+    0 0 8px rgba(87,178,255,0.95),
+    0 0 18px rgba(87,178,255,0.55),
+    0 0 28px rgba(87,178,255,0.28);
+}
+
+/* knop onder led = totale stepknop */
+body.fm-prototype-page .step-head-btn {
+  width: 100%;
+  height: var(--fm-row-height);
+  border-radius: 8px;
+  border: 1px solid rgba(74,61,47,0.9);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02) 30%, rgba(0,0,0,0.16)),
+    linear-gradient(180deg, #2b241f 0%, #12100e 100%);
+  color: #f1eadf;
+  line-height: 1;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 2px 4px rgba(0,0,0,0.28);
+  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+/* actieve playhead stepknop = duidelijk blauw */
+body.fm-prototype-page .step-head.current .step-head-btn {
+  border-color: #7fc0ff;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06) 28%, rgba(0,0,0,0.10)),
+    linear-gradient(180deg, #3c67a8 0%, #18345f 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.16),
+    0 0 0 1px rgba(127,192,255,0.22),
+    0 0 12px rgba(87,178,255,0.30),
+    0 2px 6px rgba(0,0,0,0.30);
+  transform: translateY(-1px);
+}
+
+/* step met data maar niet current iets subtiel blauw */
+body.fm-prototype-page .step-head.has-data .step-head-btn {
+  border-color: rgba(92,154,255,0.82);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.10),
+    0 0 0 1px rgba(92,154,255,0.16);
+}
+
+/* kleinere tekst als er veel steps zijn */
+body.fm-prototype-page .step-head {
+  width: var(--fm-step-size);
+}
+
+body.fm-prototype-page .step-head-btn,
+body.fm-prototype-page .step-index,
+body.fm-prototype-page .step-number {
+  font-size: clamp(0.7rem, calc(var(--fm-step-size) * 0.22), 1rem);
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* extra veiligheid voor small screens / 32 steps */
+@media (max-width: 900px) {
+  body.fm-prototype-page {
+    --fm-step-size-base: 42px;
+  }
+}
+
+@media (max-width: 680px) {
+  body.fm-prototype-page {
+    --fm-step-size-base: 34px;
+    --fm-grid-gap: 4px;
+  }
+
+  body.fm-prototype-page .step-led {
+    width: 8px;
+    height: 8px;
+  }
+}
+
 
 
 /* =========================================
