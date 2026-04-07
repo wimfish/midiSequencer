@@ -3,12 +3,11 @@
 :root {
   --fm-shell-width: 1700px;
 
-  --fm-step-size: 46px;
-  --fm-row-height: 32px;
-  --fm-label-width: 72px;
-  --fm-step-count: 16;
-  --fm-row-count: 12;
-  --fm-grid-gap: 4px;
+  --fm-note-label-width: 58px;
+  --fm-grid-step-width: 56px;
+  --fm-grid-row-height: 28px;
+  --fm-grid-gap: 3px;
+  --fm-grid-radius: 10px;
 
   --fm-white-key-width: 68px;
   --fm-white-key-height: 164px;
@@ -16,7 +15,8 @@
   --fm-black-key-height: 94px;
   --fm-white-key-gap: 2px;
 
-  --fm-line: rgba(115, 87, 51, 0.3);
+  --fm-step-glow: rgba(255,214,102,0.34);
+  --fm-line: rgba(115,87,51,0.30);
 
   --fm-white-key: #efe8db;
   --fm-white-key-line: #b5a891;
@@ -33,6 +33,10 @@ body.fm-prototype-page .app-shell {
   width: min(100%, var(--fm-shell-width));
 }
 
+/* =========================================
+   FONT
+========================================= */
+
 body.fm-prototype-page h1,
 body.fm-prototype-page h2,
 body.fm-prototype-page h3,
@@ -40,70 +44,73 @@ body.fm-prototype-page label,
 body.fm-prototype-page .status,
 body.fm-prototype-page button,
 body.fm-prototype-page select,
-body.fm-prototype-page input,
-body.fm-prototype-page .fm-section-title {
+body.fm-prototype-page input {
   font-family: "Agdasima", Inter, Arial, sans-serif;
 }
 
-body.fm-prototype-page .fm-hero-main {
-  min-width: 0;
-}
+/* =========================================
+   TRANSPORT (knoppen breed)
+========================================= */
 
-body.fm-prototype-page .fm-sub {
-  max-width: 70ch;
-}
-
-body.fm-prototype-page .fm-main-controls,
-body.fm-prototype-page .fm-performance-controls,
-body.fm-prototype-page .fm-midi-panel,
-body.fm-prototype-page .fm-sequencer-card,
-body.fm-prototype-page .fm-piano-card {
-  overflow: hidden;
-}
-
-/* transport */
-body.fm-prototype-page .fm-transport-buttons {
+.fm-transport-buttons {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(5, 1fr);
   gap: 10px;
   width: 100%;
   grid-column: 1 / -1;
 }
 
-body.fm-prototype-page .fm-transport-buttons > button {
+.fm-transport-buttons button {
   width: 100%;
 }
 
-/* status */
-body.fm-prototype-page .fm-status-main {
-  grid-template-columns: minmax(180px, 220px) minmax(260px, 1fr) minmax(260px, 1fr);
+/* =========================================
+   STATUS BAR
+========================================= */
+
+.fm-status-main {
+  display: grid;
+  grid-template-columns: 220px 1fr 1fr;
+  gap: 12px;
+  align-items: center;
 }
 
-body.fm-prototype-page .fm-cursor-box,
-body.fm-prototype-page .fm-live-help {
+.fm-cursor-box,
+.fm-live-help {
   display: flex;
   align-items: center;
   min-height: 42px;
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--fm-line);
-  background: rgba(17, 12, 8, 0.1);
-  min-width: 0;
+  background: rgba(17,12,8,0.10);
 }
 
-body.fm-prototype-page .fm-live-help {
+.fm-live-help {
   justify-content: flex-end;
 }
 
-/* sequencer card outer layer should not mask pcb background */
-body.fm-prototype-page .fm-sequencer-card {
-  background: none !important;
-  background-image: none !important;
-  overflow: hidden;
-  padding: 10px;
+
+/* =========================
+   FM SEQUENCER / PIANO ROLL
+========================= */
+
+:root {
+  --fm-step-size: 46px;
+  --fm-row-height: 32px;
+  --fm-label-width: 72px;
+  --fm-step-count: 16;
+  --fm-row-count: 12;
+  --fm-grid-gap: 4px;
 }
 
-/* sequencer */
+/* buitenste card behoudt drum/metal look */
+body.fm-prototype-page .fm-sequencer-card {
+  overflow: hidden;
+  padding: 12px;
+}
+
+/* binnenvlak = oker pcb */
 body.fm-prototype-page .fm-sequencer-inner {
   width: 100%;
   display: flex;
@@ -111,18 +118,39 @@ body.fm-prototype-page .fm-sequencer-inner {
   align-items: center;
   padding: 14px 16px 16px;
   border-radius: 14px;
-  border: 1px solid rgba(102, 73, 24, 0.7);
+  border: 1px solid rgba(95, 64, 18, 0.85);
   background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.48) 0 4px, transparent 4px 60px),
-    linear-gradient(0deg, rgba(0, 0, 0, 0.44) 0 4px, transparent 4px 60px),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.34) 0 1px, transparent 1px 30px),
-    linear-gradient(0deg, rgba(0, 0, 0, 0.3) 0 1px, transparent 1px 30px),
-    radial-gradient(circle at 18% 22%, rgba(255, 220, 140, 0.14), transparent 20%),
-    radial-gradient(circle at 78% 70%, rgba(255, 240, 180, 0.1), transparent 22%),
-    linear-gradient(180deg, #b8842a 0%, #8f651c 100%) !important;
+    /* dikke verticale pcb-banen */
+    linear-gradient(
+      90deg,
+      rgba(20, 12, 4, 0.34) 0 3px,
+      transparent 3px 64px
+    ),
+    /* dikke horizontale pcb-banen */
+    linear-gradient(
+      0deg,
+      rgba(20, 12, 4, 0.30) 0 3px,
+      transparent 3px 64px
+    ),
+    /* fijne verticale lijnen */
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.18) 0 1px,
+      transparent 1px 16px
+    ),
+    /* fijne horizontale lijnen */
+    linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.16) 0 1px,
+      transparent 1px 16px
+    ),
+    /* subtiele copper/oker glans */
+    radial-gradient(circle at 18% 22%, rgba(255, 222, 140, 0.12), transparent 18%),
+    radial-gradient(circle at 76% 68%, rgba(255, 236, 170, 0.08), transparent 22%),
+    linear-gradient(180deg, #c58f2d 0%, #9c6f1e 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    inset 0 -12px 16px rgba(0, 0, 0, 0.14);
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -10px 14px rgba(0, 0, 0, 0.10);
 }
 
 body.fm-prototype-page .fm-sequencer-card .fm-section-title {
@@ -180,37 +208,37 @@ body.fm-prototype-page .step-head-btn {
   border-radius: 8px;
   border: 1px solid rgba(74, 61, 47, 0.9);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02) 30%, rgba(0, 0, 0, 0.16)),
+    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02) 30%, rgba(0,0,0,0.16)),
     linear-gradient(180deg, #2b241f 0%, #12100e 100%);
   color: #f1eadf;
   font-size: 1rem;
   line-height: 1;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 2px 4px rgba(0, 0, 0, 0.28);
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 2px 4px rgba(0,0,0,0.28);
 }
 
 body.fm-prototype-page .step-head.has-data .step-head-btn {
   border-color: rgba(92, 154, 255, 0.82);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255,255,255,0.10),
     0 0 0 1px rgba(92, 154, 255, 0.16);
 }
 
 body.fm-prototype-page .step-head.cursor .step-head-btn {
   border-color: #f0d08a;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 1px 0 rgba(255,255,255,0.12),
     0 0 0 2px rgba(240, 208, 138, 0.22);
 }
 
 body.fm-prototype-page .step-head.current .step-head-btn {
   border-color: #7fc0ff;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05) 30%, rgba(0, 0, 0, 0.12)),
+    linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.05) 30%, rgba(0,0,0,0.12)),
     linear-gradient(180deg, #2a3e5f 0%, #142033 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 1px 0 rgba(255,255,255,0.14),
     0 0 12px rgba(87, 178, 255, 0.22);
 }
 
@@ -259,8 +287,8 @@ body.fm-prototype-page .note-label-badge {
   font-size: 0.84rem;
   line-height: 1;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    0 1px 2px rgba(0, 0, 0, 0.12);
+    inset 0 1px 0 rgba(255,255,255,0.28),
+    0 1px 2px rgba(0,0,0,0.12);
 }
 
 /* grid */
@@ -286,11 +314,11 @@ body.fm-prototype-page .cell {
   border-radius: 8px;
   border: 1px solid rgba(74, 61, 47, 0.9);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02) 30%, rgba(0, 0, 0, 0.16)),
+    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02) 30%, rgba(0,0,0,0.16)),
     linear-gradient(180deg, #2b241f 0%, #12100e 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 2px 4px rgba(0, 0, 0, 0.22);
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 2px 4px rgba(0,0,0,0.22);
   transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
 }
 
@@ -301,10 +329,10 @@ body.fm-prototype-page .cell:hover {
 body.fm-prototype-page .cell.has-note {
   border-color: #6df0ad;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.05) 28%, rgba(0, 0, 0, 0.1)),
+    linear-gradient(180deg, rgba(255,255,255,0.20), rgba(255,255,255,0.05) 28%, rgba(0,0,0,0.10)),
     linear-gradient(180deg, #1f5f43 0%, #0f2f22 100%);
   box-shadow:
-    inset 0 1px 0 rgba(220, 255, 235, 0.26),
+    inset 0 1px 0 rgba(220,255,235,0.26),
     0 0 10px rgba(90, 255, 170, 0.28);
 }
 
@@ -319,29 +347,31 @@ body.fm-prototype-page .cell.flash-denied {
     0 0 0 1px rgba(255, 90, 90, 0.22),
     0 0 12px rgba(255, 90, 90, 0.35);
 }
+/* =========================================
+   PIANO (FIXED!)
+========================================= */
 
-/* piano */
-body.fm-prototype-page .fm-piano-shell {
+.fm-piano-shell {
   display: flex;
   justify-content: center;
   padding: 16px 18px;
   border-radius: 14px;
-  border: 1px solid rgba(88, 73, 57, 0.85);
-  background: linear-gradient(180deg, rgba(116, 77, 30, 0.96), rgba(76, 48, 17, 0.98));
+  border: 1px solid rgba(88,73,57,0.85);
+  background: linear-gradient(180deg, rgba(116,77,30,.96), rgba(76,48,17,.98));
   overflow-x: auto;
 }
 
-body.fm-prototype-page .piano-stage {
-  position: relative;
-  width: max-content;
-  margin: 0 auto;
+.piano-stage {
+    position: relative;
+    width: max-content;
+    margin: -15px auto auto;
 }
 
-body.fm-prototype-page .piano-row-white {
+.piano-row-white {
   display: flex;
 }
 
-body.fm-prototype-page .piano-row-black {
+.piano-row-black {
   position: absolute;
   top: 0;
   left: 0;
@@ -350,14 +380,9 @@ body.fm-prototype-page .piano-row-black {
   pointer-events: none;
 }
 
-body.fm-prototype-page .piano-key,
-body.fm-prototype-page .white-key,
-body.fm-prototype-page .black-key {
-  user-select: none;
-  -webkit-user-select: none;
-}
+/* WITTE TOETSEN */
 
-body.fm-prototype-page .piano-key.white {
+.piano-key.white {
   width: var(--fm-white-key-width);
   height: var(--fm-white-key-height);
   margin-right: var(--fm-white-key-gap);
@@ -365,143 +390,50 @@ body.fm-prototype-page .piano-key.white {
   border: 1px solid #908577;
   background: linear-gradient(180deg, #f5f1e7, #c9bba2);
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 5px;
-  padding: 10px 4px 12px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.72),
-    0 3px 8px rgba(0, 0, 0, 0.16);
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 12px;
 }
 
-body.fm-prototype-page .piano-key.white:last-child {
+.piano-key.white:last-child {
   margin-right: 0;
 }
 
-body.fm-prototype-page .piano-key.black {
+/* ZWARTE TOETSEN (FIX!) */
+
+.piano-key.black {
   position: absolute;
   top: 0;
   width: var(--fm-black-key-width);
   height: var(--fm-black-key-height);
   transform: translateX(-50%);
   border-radius: 0 0 8px 8px;
-  border: 1px solid #312821;
-  border-bottom-width: 2px;
-  background:
-    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.08), transparent 22%),
-    linear-gradient(180deg, #2e2722 0%, #15110f 100%);
+  background: linear-gradient(180deg, #2e2722, #15110f);
   z-index: 3;
   pointer-events: auto;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-  padding: 8px 2px 10px;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 8px;
   color: #fff;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 4px 8px rgba(0, 0, 0, 0.28);
 }
 
-body.fm-prototype-page .piano-note-label,
-body.fm-prototype-page .piano-keybind-label {
-  width: 100%;
-  text-align: center;
-}
-
-body.fm-prototype-page .white-key.is-active,
-body.fm-prototype-page .white-key.active,
-body.fm-prototype-page .white-key[data-active="true"],
-body.fm-prototype-page .white-key[aria-pressed="true"] {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.22) 16%, transparent 18%),
-    linear-gradient(180deg, #fff5d5 0%, #f4df9b 65%, #dfbf63 100%);
-  border-color: #b38b2d;
-}
-
-body.fm-prototype-page .black-key.is-active,
-body.fm-prototype-page .black-key.active,
-body.fm-prototype-page .black-key[data-active="true"],
-body.fm-prototype-page .black-key[aria-pressed="true"] {
-  background:
-    linear-gradient(180deg, rgba(255, 240, 186, 0.22), transparent 12%),
-    linear-gradient(180deg, #7d6531 0%, #3a2d17 84%);
-  border-color: #c79d3c;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 0 0 1px rgba(255, 209, 102, 0.18),
-    0 0 14px rgba(255, 209, 102, 0.28);
-}
-
-body.fm-prototype-page .white-key.is-playing,
-body.fm-prototype-page .white-key.playing,
-body.fm-prototype-page .white-key[data-playing="true"],
-body.fm-prototype-page .black-key.is-playing,
-body.fm-prototype-page .black-key.playing,
-body.fm-prototype-page .black-key[data-playing="true"] {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    0 0 0 1px rgba(71, 229, 194, 0.2),
-    0 0 14px rgba(71, 229, 194, 0.34);
-}
-
-body.fm-prototype-page .white-key:focus-visible,
-body.fm-prototype-page .black-key:focus-visible {
-  outline: 2px solid rgba(255, 209, 102, 0.82);
-  outline-offset: 2px;
-}
-
-@media (max-width: 1279px) {
-  :root {
-    --fm-step-size: 38px;
-    --fm-row-height: 28px;
-    --fm-label-width: 62px;
-    --fm-grid-gap: 3px;
-  }
-
-  body.fm-prototype-page .note-label-badge {
-    min-width: 40px;
-    font-size: 0.76rem;
-  }
-}
-
-@media (max-width: 1040px) {
-  body.fm-prototype-page .fm-status-main {
-    grid-template-columns: 1fr;
-  }
-
-  body.fm-prototype-page .fm-live-help {
-    justify-content: flex-start;
-  }
-}
+/* =========================================
+   RESPONSIVE
+========================================= */
 
 @media (max-width: 900px) {
-  :root {
-    --fm-step-size: 30px;
-    --fm-row-height: 24px;
-    --fm-label-width: 54px;
-    --fm-grid-gap: 2px;
+  .fm-transport-buttons {
+    grid-template-columns: repeat(3, 1fr);
   }
 
-  body.fm-prototype-page .fm-transport-buttons {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  body.fm-prototype-page .step-head-btn {
-    font-size: 0.9rem;
-  }
-
-  body.fm-prototype-page .note-label-badge {
-    min-width: 34px;
-    font-size: 0.7rem;
-    padding: 0 6px;
+  .fm-status-main {
+    grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 640px) {
-  body.fm-prototype-page .fm-transport-buttons {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (max-width: 600px) {
+  .fm-transport-buttons {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
