@@ -445,13 +445,14 @@ body.fm-prototype-page .cell.flash-denied {
   border-radius: 14px;
   border: 1px solid rgba(88,73,57,0.85);
   background: linear-gradient(180deg, rgba(116,77,30,.96), rgba(76,48,17,.98));
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .piano-stage {
   position: relative;
   width: max-content;
   margin: -15px auto auto;
+  will-change: transform;
 }
 
 .piano-row-white {
@@ -475,9 +476,11 @@ body.fm-prototype-page .cell.flash-denied {
   border: 1px solid #908577;
   background: linear-gradient(180deg, #f5f1e7, #c9bba2);
   display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding-bottom: 12px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding-bottom: 10px;
 }
 
 .piano-key.white:last-child {
@@ -495,10 +498,45 @@ body.fm-prototype-page .cell.flash-denied {
   z-index: 3;
   pointer-events: auto;
   display: flex;
-  align-items: flex-end;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
   padding-bottom: 8px;
   color: #fff;
+}
+
+.piano-keybind-label {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.95;
+}
+
+.piano-note-label {
+  font-weight: 800;
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.piano-key.black .piano-keybind-label,
+.piano-key.black .piano-note-label {
+  color: rgba(255,255,255,0.92);
+}
+
+.piano-key.white .piano-keybind-label {
+  color: rgba(20,14,10,0.92);
+}
+
+.piano-key.white .piano-note-label {
+  color: rgba(20,14,10,0.72);
+}
+
+.piano-key:focus-visible {
+  outline: 2px solid rgba(255,255,255,0.9);
+  outline-offset: 2px;
 }
 
 /* =========================================
@@ -510,6 +548,10 @@ body.fm-prototype-page .cell.flash-denied {
     --fm-label-width: 62px;
     --fm-row-height: 28px;
     --fm-grid-gap: 3px;
+    --fm-white-key-width: 56px;
+    --fm-white-key-height: 146px;
+    --fm-black-key-width: 34px;
+    --fm-black-key-height: 84px;
   }
 
   .fm-transport-buttons {
@@ -530,6 +572,10 @@ body.fm-prototype-page .cell.flash-denied {
     --fm-label-width: 54px;
     --fm-row-height: 24px;
     --fm-grid-gap: 2px;
+    --fm-white-key-width: 46px;
+    --fm-white-key-height: 128px;
+    --fm-black-key-width: 28px;
+    --fm-black-key-height: 74px;
   }
 
   .fm-transport-buttons {
@@ -544,5 +590,14 @@ body.fm-prototype-page .cell.flash-denied {
   body.fm-prototype-page .step-led {
     width: 8px;
     height: 8px;
+  }
+}
+
+@media (max-width: 420px) {
+  body.fm-prototype-page {
+    --fm-white-key-width: 40px;
+    --fm-white-key-height: 114px;
+    --fm-black-key-width: 24px;
+    --fm-black-key-height: 66px;
   }
 }

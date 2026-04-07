@@ -370,14 +370,33 @@ export function fmSequencerFeature() {
       return { note, keybind };
     }
 
+    function applyPianoScale() {
+      const shell = root.querySelector(".fm-piano-shell");
+      const stage = root.querySelector(".piano-stage");
+      if (!shell || !stage) return;
+
+      // Reset first to measure natural width.
+      stage.style.transform = "";
+      stage.style.transformOrigin = "";
+
+      const available = shell.clientWidth;
+      const needed = stage.scrollWidth;
+      const scale = needed > 0 ? Math.min(1, available / needed) : 1;
+
+      stage.style.transformOrigin = "top center";
+      stage.style.transform = `scale(${scale})`;
+
+      // Keep the card height proportional to the scaled keys.
+      shell.style.setProperty("--fm-piano-scale", String(scale));
+    }
+
     function buildPiano() {
       els.pianoWhiteKeys.innerHTML = "";
       els.pianoBlackKeys.innerHTML = "";
-      const rootStyle = getComputedStyle(document.documentElement);
-      const whiteWidth = parseFloat(rootStyle.getPropertyValue("--fm-white-key-width")) || 68;
-      const blackWidth = parseFloat(rootStyle.getPropertyValue("--fm-black-key-width")) || 40;
-      const whiteGap = parseFloat(rootStyle.getPropertyValue("--fm-white-key-gap")) || 2;
-      void blackWidth;
+
+      const whiteEls = [];
+      const pendingBlack = [];
+
       PIANO_LAYOUT.forEach((item) => {
         const shiftedMidi = item.midi + Number(state.octaveShift);
         if (!midiInDisplayRange(item.midi)) return;
@@ -387,8 +406,8 @@ export function fmSequencerFeature() {
         btn.dataset.midi = String(shiftedMidi);
         const keyText = MIDI_TO_KEY[item.midi] || "";
         const labels = buildPianoKeyLabelWrap(noteNameFromMidi(shiftedMidi), keyText);
-        btn.appendChild(labels.note);
         btn.appendChild(labels.keybind);
+        btn.appendChild(labels.note);
         btn.addEventListener("click", () => {
           if (state.mode === "step") {
             toggleNoteInStep(state.cursorStep, shiftedMidi);
@@ -401,12 +420,28 @@ export function fmSequencerFeature() {
         });
         if (item.kind === "white") {
           els.pianoWhiteKeys.appendChild(btn);
+          whiteEls.push(btn);
         } else {
-          const boundaryX = (item.leftIndex + 1) * whiteWidth + item.leftIndex * whiteGap;
-          btn.style.left = `${boundaryX}px`;
           els.pianoBlackKeys.appendChild(btn);
+          pendingBlack.push({ el: btn, leftIndex: item.leftIndex });
         }
       });
+
+      // Position black keys based on actual rendered white key geometry,
+      // so they stay centered between two whites at all breakpoints/scales.
+      // We do this before scaling the whole stage.
+      pendingBlack.forEach(({ el, leftIndex }) => {
+        const leftWhite = whiteEls[leftIndex];
+        const rightWhite = whiteEls[leftIndex + 1];
+        if (!leftWhite || !rightWhite) return;
+
+        const left = leftWhite.offsetLeft + leftWhite.offsetWidth;
+        const right = rightWhite.offsetLeft;
+        const center = (left + right) / 2;
+        el.style.left = `${center}px`;
+      });
+
+      applyPianoScale();
     }
 
     function render() {
