@@ -4,6 +4,7 @@ import { requestMidiAccess, listMidiOutputs } from "../../shared/midi/access.js"
 
 const STORAGE_KEY = "volca-fm-prototype-v10";
 const MAX_NOTES_PER_STEP = 3;
+const VOLCA_SELECTION_KEY = "volca-selected";
 
 export function fmSequencerFeature() {
   return { mount };
@@ -19,6 +20,7 @@ export function fmSequencerFeature() {
       saveBtn: document.getElementById("saveBtn"),
       loadBtn: document.getElementById("loadBtn"),
       toggleSettingsBtn: document.getElementById("toggleSettingsBtn"),
+      volcaSelect: document.getElementById("volcaSelect"),
       modeSelect: document.getElementById("modeSelect"),
       tempoInput: document.getElementById("tempoInput"),
       stepCountSelect: document.getElementById("stepCountSelect"),
@@ -647,6 +649,14 @@ export function fmSequencerFeature() {
     }
 
     function bindEvents() {
+      els.volcaSelect.addEventListener("change", () => {
+        const next = els.volcaSelect.value;
+        localStorage.setItem(VOLCA_SELECTION_KEY, next);
+        if (next !== "fm") {
+          window.location.hash = "#/style";
+        }
+      });
+
       els.playBtn.addEventListener("click", () => {
         if (state.isPlaying) stopPlayback();
         else startPlayback();
@@ -770,6 +780,12 @@ export function fmSequencerFeature() {
 
     function init() {
       populateChannels();
+
+      // Keep the Volca selector in sync across views.
+      const savedVolca = localStorage.getItem(VOLCA_SELECTION_KEY) || "fm";
+      els.volcaSelect.value = savedVolca === "fm" ? "fm" : savedVolca;
+      localStorage.setItem(VOLCA_SELECTION_KEY, els.volcaSelect.value);
+
       bindEvents();
       updateGridScale();
       render();
@@ -805,6 +821,16 @@ function template() {
     <section id="controlStack" class="control-stack">
       <div id="advancedPanel" class="advanced-panel">
         <section class="controls card fm-main-controls">
+          <div class="field">
+            <label for="volcaSelect">Volca</label>
+            <select id="volcaSelect">
+              <option value="beats">Volca Beats</option>
+              <option value="sample">Volca Sample</option>
+              <option value="drum">Volca Drum</option>
+              <option value="fm" selected>Volca FM</option>
+            </select>
+          </div>
+
           <div class="field">
             <label for="modeSelect">Mode</label>
             <select id="modeSelect">

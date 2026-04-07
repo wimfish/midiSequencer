@@ -6,6 +6,7 @@ import { saveJson, loadJson } from "../../shared/storage/jsonStorage.js";
 import { requestMidiAccess, listMidiOutputs } from "../../shared/midi/access.js";
 
 const STORAGE_KEY = "volca-sequencer-save";
+const VOLCA_SELECTION_KEY = "volca-selected";
 
 export function styleSequencerFeature() {
   return { mount };
@@ -93,9 +94,24 @@ export function styleSequencerFeature() {
       toggleSettingsPanel(true);
       setupAudio();
       setupMidi();
+
+      // Keep the Volca selector in sync across views.
+      const savedVolca = localStorage.getItem(VOLCA_SELECTION_KEY);
+      if (savedVolca) {
+        els.volcaSelect.value = savedVolca;
+        state.volca = savedVolca;
+      } else {
+        localStorage.setItem(VOLCA_SELECTION_KEY, els.volcaSelect.value);
+      }
+
+      // If user selected FM in another view, jump immediately.
+      if (els.volcaSelect.value === "fm") {
+        window.location.hash = "#/fm";
+        return;
+      }
+
+      // This will also generate pattern + render when requested.
       applyVolcaProfile(true);
-      generatePattern();
-      render();
 
       globalPointerUpHandler = () => {
         state.drawMode = null;
@@ -143,7 +159,15 @@ export function styleSequencerFeature() {
         regenerateTrackLengths();
         render();
       });
-      els.volcaSelect.addEventListener("change", () => applyVolcaProfile(true));
+      els.volcaSelect.addEventListener("change", () => {
+        const next = els.volcaSelect.value;
+        localStorage.setItem(VOLCA_SELECTION_KEY, next);
+        if (next === "fm") {
+          window.location.hash = "#/fm";
+          return;
+        }
+        applyVolcaProfile(true);
+      });
       els.bpmInput.addEventListener("input", () => {
         state.bpm = clamp(Number(els.bpmInput.value) || 120, 40, 240);
         els.bpmInput.value = state.bpm;
@@ -233,7 +257,9 @@ export function styleSequencerFeature() {
 
     function applyVolcaProfile(resetPattern) {
       state.volca = els.volcaSelect.value;
+      if (state.volca === "fm") return;
       const profile = volcaProfiles[state.volca];
+      if (!profile) return;
       els.midiChannelSelect.value = String(profile.channel);
       els.midiHint.textContent = `Advies ${profile.name}: kanaal ${profile.channel} · tracks ${profile.initialVisible}/${profile.maxTracks} zichtbaar · swing = timing · accent = best effort`;
       state.trackTemplates = profile.tracks.map((t, index) => ({ ...t, index }));
@@ -1009,9 +1035,10 @@ function template() {
           <div class="field">
             <label for="volcaSelect">Volca</label>
             <select id="volcaSelect">
-              <option value="beats" selected>Volca Beats</option>
+              <option value="beats">Volca Beats</option>
               <option value="sample">Volca Sample</option>
               <option value="drum">Volca Drum</option>
+              <option value="fm">Volca FM</option>
             </select>
           </div>
 
