@@ -86,7 +86,11 @@ export function styleSequencerFeature() {
         "addTrackModal",
         "addTrackSelect",
         "addTrackConfirmBtn",
-        "addTrackCancelBtn"
+        "addTrackCancelBtn",
+        "velocityModal",
+        "velocityInput",
+        "velocityConfirmBtn",
+        "velocityCancelBtn"
       ];
     }
 
@@ -194,6 +198,24 @@ export function styleSequencerFeature() {
       els.addTrackModal.addEventListener("click", (e) => {
         if (e.target === els.addTrackModal) closeAddTrackDialog();
       });
+
+      els.velocityConfirmBtn.addEventListener("click", () => {
+        const trackIndex = Number(els.velocityModal.dataset.trackIndex);
+        const stepIndex = Number(els.velocityModal.dataset.stepIndex);
+        const next = clamp(Number(els.velocityInput.value), 0, 127);
+        const track = state.tracks[trackIndex];
+        if (!track) return closeVelocityDialog();
+        const cell = normalizeCell(track.steps[stepIndex]);
+        cell.velocity = next;
+        track.steps[stepIndex] = cell;
+        closeVelocityDialog();
+        render();
+        setStatus(`${track.name} step ${stepIndex + 1} velocity ${next}`);
+      });
+      els.velocityCancelBtn.addEventListener("click", closeVelocityDialog);
+      els.velocityModal.addEventListener("click", (e) => {
+        if (e.target === els.velocityModal) closeVelocityDialog();
+      });
       els.midiEnable.addEventListener("change", () => {
         state.midiEnabled = els.midiEnable.checked;
         setStatus(state.midiEnabled ? "MIDI aan" : "MIDI uit");
@@ -265,7 +287,7 @@ export function styleSequencerFeature() {
         accent: 100,
         settingsOpen: false,
         cursorStep: 0,
-        steps: Array.from({ length: state.length }, () => false)
+        steps: Array.from({ length: state.length }, () => ({ on: false, velocity: 100 }))
       };
     }
 
@@ -354,6 +376,26 @@ export function styleSequencerFeature() {
       modal.setAttribute("aria-hidden", "true");
     }
 
+    function openVelocityDialog(trackIndex, stepIndex) {
+      const track = state.tracks[trackIndex];
+      if (!track) return;
+      const cell = normalizeCell(track.steps[stepIndex]);
+      els.velocityInput.value = String(clamp(Number(cell.velocity) || 0, 0, 127));
+      els.velocityModal.dataset.trackIndex = String(trackIndex);
+      els.velocityModal.dataset.stepIndex = String(stepIndex);
+      els.velocityModal.classList.remove("hidden");
+      els.velocityModal.setAttribute("aria-hidden", "false");
+      els.velocityInput.focus();
+      els.velocityInput.select();
+    }
+
+    function closeVelocityDialog() {
+      els.velocityModal.classList.add("hidden");
+      els.velocityModal.setAttribute("aria-hidden", "true");
+      els.velocityModal.dataset.trackIndex = "";
+      els.velocityModal.dataset.stepIndex = "";
+    }
+
     function removeTrack(announce = true) {
       const profile = volcaProfiles[state.volca];
       const minimum = Math.min(profile.initialVisible || 4, state.maxTracks);
@@ -370,14 +412,21 @@ export function styleSequencerFeature() {
 
     function regenerateTrackLengths() {
       state.tracks.forEach((track) => {
-        track.steps = Array.from({ length: state.length }, (_, i) => track.steps[i] || false);
+        track.steps = Array.from({ length: state.length }, (_, i) => {
+          const prev = track.steps[i];
+          if (prev && typeof prev === "object") return { on: !!prev.on, velocity: clamp(Number(prev.velocity) || 100, 0, 127) };
+          // Back-compat from boolean saves.
+          return { on: !!prev, velocity: 100 };
+        });
         track.cursorStep = clamp(track.cursorStep ?? 0, 0, state.length - 1);
       });
       if (state.currentStep >= state.length) state.currentStep = 0;
     }
 
     function clearPattern() {
-      state.tracks.forEach((track) => (track.steps = Array.from({ length: state.length }, () => false)));
+      state.tracks.forEach(
+        (track) => (track.steps = Array.from({ length: state.length }, () => ({ on: false, velocity: 100 })))
+      );
       render();
       setStatus("Pattern gewist");
     }
@@ -387,7 +436,7 @@ export function styleSequencerFeature() {
       state.bpm = cfg.bpm;
       els.bpmInput.value = cfg.bpm;
       state.tracks.forEach((track, i) => {
-        track.steps = Array.from({ length: state.length }, () => false);
+        track.steps = Array.from({ length: state.length }, () => ({ on: false, velocity: 100 }));
         fillTrackByRole(track, i, cfg, state.variation, state.length);
       });
       render();
@@ -403,7 +452,9 @@ export function styleSequencerFeature() {
       if (trackIndex === 2) applyHat(localSteps, cfg.hihat, variation);
       if (trackIndex === 3) applyGhost(localSteps, cfg.ghost, variation);
       for (let r = 0; r < repeatCount; r++) {
-        for (let i = 0; i < Math.min(oneBar, length - r * oneBar); i++) track.steps[r * oneBar + i] = localSteps[i];
+        for (let i = 0; i < Math.min(oneBar, length - r * oneBar); i++) {
+          track.steps[r * oneBar + i].on = !!localSteps[i];
+        }
       }
     }
 
@@ -503,12 +554,18 @@ export function styleSequencerFeature() {
         preview.className = `track-preview grid-shell inline-grid-shell${isActive ? " active-electra" : ""}${isActive && state.isPlaying ? " playing-electra" : ""}`;
         const previewGrid = document.createElement("div");
         previewGrid.className = "step-grid preview-grid";
-        track.steps.forEach((isOn, stepIndex) => {
+        track.steps.forEach((_isOn, stepIndex) => {
+          const wrapStep = document.createElement("div");
+          wrapStep.className = "step-wrap";
+
           const step = document.createElement("button");
           step.type = "button";
           const isCursor = isActive && ensureTrackCursor(trackIndex) === stepIndex;
-          step.className = `step${isOn ? " on" : ""}${state.currentStep === stepIndex && state.isPlaying ? " current" : ""}${isCursor ? " selected" : ""}`;
-          step.textContent = stepIndex + 1;
+          const cell = normalizeCell(track.steps[stepIndex]);
+          step.className = `step${cell.on ? " on" : ""}${state.currentStep === stepIndex && state.isPlaying ? " current" : ""}${isCursor ? " selected" : ""}`;
+          const vel = clamp(Number(cell.velocity) || 0, 0, 127);
+          step.style.setProperty("--vel", String(cell.on ? vel / 127 : 0));
+          step.innerHTML = `<span class="step-num">${stepIndex + 1}</span>`;
           step.dataset.trackIndex = trackIndex;
           step.dataset.stepIndex = stepIndex;
           step.tabIndex = 0;
@@ -520,7 +577,7 @@ export function styleSequencerFeature() {
           step.addEventListener("pointerdown", () => {
             setActiveTrack(trackIndex, false);
             track.cursorStep = stepIndex;
-            state.drawMode = !track.steps[stepIndex];
+            state.drawMode = !normalizeCell(track.steps[stepIndex]).on;
             setStep(trackIndex, stepIndex, state.drawMode);
           });
           step.addEventListener("pointerenter", (ev) => {
@@ -528,7 +585,23 @@ export function styleSequencerFeature() {
             track.cursorStep = stepIndex;
             setStep(trackIndex, stepIndex, state.drawMode);
           });
-          previewGrid.appendChild(step);
+
+          const velBtn = document.createElement("button");
+          velBtn.type = "button";
+          velBtn.className = "step-vel-btn";
+          velBtn.textContent = String(vel);
+          velBtn.title = "Velocity (0-127)";
+          velBtn.addEventListener("click", (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            setActiveTrack(trackIndex, false);
+            track.cursorStep = stepIndex;
+            openVelocityDialog(trackIndex, stepIndex);
+          });
+
+          wrapStep.appendChild(step);
+          wrapStep.appendChild(velBtn);
+          previewGrid.appendChild(wrapStep);
         });
         preview.appendChild(previewGrid);
 
@@ -538,6 +611,7 @@ export function styleSequencerFeature() {
           <button class="track-btn icon-btn mute-btn ${track.mute ? "active-state" : ""}" data-action="mute" title="Mute" aria-label="Mute track"><span aria-hidden="true">M</span></button>
           <button class="track-btn icon-btn solo-btn ${track.solo ? "solo-state" : ""}" data-action="solo" title="Solo" aria-label="Solo track"><span aria-hidden="true">S</span></button>
           <button class="track-btn icon-btn settings-btn ${track.settingsOpen ? "active-state" : ""}" data-action="settings" title="Instellingen" aria-label="Instellingen"><span aria-hidden="true">⚙</span></button>
+          <button class="track-btn icon-btn delete-btn" data-action="delete" title="Verwijder track" aria-label="Verwijder track"><span aria-hidden="true">✕</span></button>
         `;
 
         head.appendChild(title);
@@ -579,6 +653,7 @@ export function styleSequencerFeature() {
           if (action === "mute") toggleMute(trackIndex);
           if (action === "solo") toggleSolo(trackIndex);
           if (action === "settings") toggleTrackSettings(trackIndex);
+          if (action === "delete") deleteTrack(trackIndex);
         });
 
         panel.addEventListener("click", (e) => {
@@ -589,6 +664,7 @@ export function styleSequencerFeature() {
           if (action === "mute") toggleMute(trackIndex);
           if (action === "solo") toggleSolo(trackIndex);
           if (action === "settings") toggleTrackSettings(trackIndex);
+          if (action === "delete") deleteTrack(trackIndex);
         });
 
         wrap.addEventListener("click", (e) => {
@@ -669,8 +745,11 @@ export function styleSequencerFeature() {
       const track = state.tracks[state.activeTrack];
       if (!track) return;
       const stepIndex = ensureTrackCursor(state.activeTrack);
-      const nextValue = !track.steps[stepIndex];
-      track.steps[stepIndex] = nextValue;
+      const cell = normalizeCell(track.steps[stepIndex]);
+      const nextValue = !cell.on;
+      cell.on = nextValue;
+      if (typeof cell.velocity !== "number") cell.velocity = 100;
+      track.steps[stepIndex] = cell;
       render();
       setStatus(`${track.name} step ${stepIndex + 1} ${nextValue ? "aan" : "uit"}`);
     }
@@ -706,6 +785,25 @@ export function styleSequencerFeature() {
       setStatus(`${track.name} instellingen ${track.settingsOpen ? "open" : "dicht"}`);
     }
 
+    function deleteTrack(index) {
+      const profile = volcaProfiles[state.volca];
+      const minimum = Math.min(profile?.initialVisible || 1, state.maxTracks);
+      if (state.tracks.length <= minimum) {
+        setStatus(`Minimaal ${minimum} tracks zichtbaar voor ${profile?.name || "dit profiel"}`);
+        return false;
+      }
+
+      const removed = state.tracks.splice(index, 1)[0];
+      if (!removed) return false;
+
+      // Re-index and clamp selection.
+      state.tracks.forEach((t, i) => (t.index = i));
+      state.activeTrack = clamp(state.activeTrack, 0, state.tracks.length - 1);
+      render();
+      setStatus(`${removed.name} verwijderd`);
+      return true;
+    }
+
     function setActiveSetting(prop, announce = true) {
       if (!settingMeta[prop]) return;
       state.activeSetting = prop;
@@ -731,15 +829,26 @@ export function styleSequencerFeature() {
     }
 
     function toggleStep(trackIndex, stepIndex) {
-      setStep(trackIndex, stepIndex, !state.tracks[trackIndex].steps[stepIndex]);
+      const cell = normalizeCell(state.tracks[trackIndex].steps[stepIndex]);
+      setStep(trackIndex, stepIndex, !cell.on);
     }
 
     function setStep(trackIndex, stepIndex, value) {
       const track = state.tracks[trackIndex];
       if (!track) return;
-      track.steps[stepIndex] = value;
+      const cell = normalizeCell(track.steps[stepIndex]);
+      cell.on = !!value;
+      if (typeof cell.velocity !== "number") cell.velocity = 100;
+      track.steps[stepIndex] = cell;
       track.cursorStep = clamp(stepIndex, 0, state.length - 1);
       render();
+    }
+
+    function normalizeCell(cell) {
+      if (cell && typeof cell === "object") {
+        return { on: !!cell.on, velocity: clamp(Number(cell.velocity) || 0, 0, 127) };
+      }
+      return { on: !!cell, velocity: 100 };
     }
 
     function onKeydown(e) {
@@ -881,15 +990,18 @@ export function styleSequencerFeature() {
       const soloActive = state.tracks.some((t) => t.solo);
       const secondsPerStep = 60 / state.bpm / 4;
       state.tracks.forEach((track) => {
-        if (!track.steps[stepIndex]) return;
+        const cell = normalizeCell(track.steps[stepIndex]);
+        if (!cell.on) return;
         if (track.mute) return;
         if (soloActive && !track.solo) return;
         if (Math.random() * 100 > track.probability) return;
         const swingOffset = getSwingOffsetSeconds(track.swing, stepIndex, secondsPerStep);
         const playTime = time + swingOffset;
         const accentData = getAccentData(track.accent, stepIndex, secondsPerStep);
-        playTrack(track, playTime, accentData);
-        sendMidiNote(track, playTime, accentData);
+        const velNorm = clamp(cell.velocity, 0, 127) / 127;
+        if (velNorm <= 0) return;
+        playTrack(track, playTime, accentData, velNorm);
+        sendMidiNote(track, playTime, accentData, velNorm);
       });
       if (state.midiEnabled && state.midiClockEnabled) sendMidiClockBurst();
       updatePlaybackVisuals();
@@ -913,7 +1025,12 @@ export function styleSequencerFeature() {
       };
     }
 
-    function playTrack(track, time, accentData = getAccentData(track.accent, 0, 60 / state.bpm / 4)) {
+    function playTrack(
+      track,
+      time,
+      accentData = getAccentData(track.accent, 0, 60 / state.bpm / 4),
+      velNorm = 1
+    ) {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       const noise = audioCtx.createBufferSource();
@@ -923,7 +1040,7 @@ export function styleSequencerFeature() {
       noise.buffer = buffer;
 
       osc.frequency.setValueAtTime(track.freq, time);
-      gain.gain.setValueAtTime(accentData.gain, time);
+      gain.gain.setValueAtTime(accentData.gain * velNorm, time);
       gain.gain.exponentialRampToValueAtTime(0.0001, time + accentData.gate);
 
       if (track.name.toLowerCase().includes("hat")) {
@@ -967,13 +1084,18 @@ export function styleSequencerFeature() {
       output.send([0xf8]);
     }
 
-    function sendMidiNote(track, whenTime = audioCtx.currentTime, accentData = getAccentData(track.accent, 0, 60 / state.bpm / 4)) {
+    function sendMidiNote(
+      track,
+      whenTime = audioCtx.currentTime,
+      accentData = getAccentData(track.accent, 0, 60 / state.bpm / 4),
+      velNorm = 1
+    ) {
       const output = getMidiOutput();
       if (!output) return;
       const ch = clamp(Number(els.midiChannelSelect.value) - 1, 0, 15);
       const on = 0x90 + ch;
       const off = 0x80 + ch;
-      const velocity = clamp(accentData.velocity, 1, 127);
+      const velocity = clamp(Math.round(accentData.velocity * velNorm), 1, 127);
       const baseMs = performance.now() + Math.max(0, (whenTime - audioCtx.currentTime) * 1000);
       const gateMs = Math.round(55 + accentData.normalized * 45);
       output.send([on, track.midiNote, velocity], baseMs);
@@ -1209,6 +1331,19 @@ function template() {
         <div class="buttons-wrap">
           <button id="addTrackConfirmBtn">Toevoegen</button>
           <button id="addTrackCancelBtn" class="secondary" type="button">Annuleren</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="velocityModal" class="selector-modal hidden" aria-hidden="true" data-track-index="" data-step-index="">
+      <div class="card">
+        <div class="field">
+          <label for="velocityInput">Velocity (0–127)</label>
+          <input id="velocityInput" type="number" min="0" max="127" step="1" value="100" />
+        </div>
+        <div class="buttons-wrap">
+          <button id="velocityConfirmBtn">OK</button>
+          <button id="velocityCancelBtn" class="secondary" type="button">Annuleren</button>
         </div>
       </div>
     </div>

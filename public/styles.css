@@ -277,10 +277,11 @@ select option { color: #111; background: #f1ece4; }
 .step-grid {
   display: grid;
   grid-template-columns: repeat(var(--grid-cols, 16), var(--step-size, 42px));
-  grid-auto-rows: calc(var(--step-size, 42px) + var(--step-led-clearance, 16px));
+  grid-auto-rows: calc(var(--step-size, 42px) + var(--step-led-clearance, 16px) + 16px);
   column-gap: var(--step-gap-x, 6px); row-gap: var(--step-gap-y, 8px);
   width: max-content; max-width: 100%; margin: 0 auto; justify-content: center; align-content: center;
 }
+.step-wrap { align-self: end; display: flex; flex-direction: column; align-items: center; gap: 3px; }
 .step { align-self: end; }
 .track.len-8  { --grid-cols: 8;  --step-size: 38px; --step-gap-x: 8px;  --step-gap-y: 10px; }
 .track.len-16 { --grid-cols: 16; --step-size: 29px; --step-gap-x: 6px;  --step-gap-y: 8px;  }
@@ -294,11 +295,12 @@ select option { color: #111; background: #f1ece4; }
   aspect-ratio: 1; border-radius: var(--radius-step, 8px);
   border: 1px solid rgba(90,108,126,.55);
   background: linear-gradient(180deg, rgba(35,43,52,.95), rgba(27,33,40,.98));
-  display: flex; align-items: center; justify-content: center; padding: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0;
   font-variant-numeric: tabular-nums; font-size: .76rem; color: #718395;
   user-select: none; cursor: pointer;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
   transition: background .14s ease, border-color .14s ease, box-shadow .14s ease, color .14s ease;
+  position: relative;
 }
 .track.len-16 .step { font-size: .68rem; }
 .track.len-32 .step { font-size: .62rem; }
@@ -310,6 +312,35 @@ select option { color: #111; background: #f1ece4; }
   border-color: rgba(111,222,255,.85);
   box-shadow: 0 0 0 1px rgba(111,222,255,.12), 0 0 14px rgba(86,211,255,.16);
 }
+
+.step-num { line-height: 1; }
+.step-vel-btn {
+  min-height: unset;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(0,0,0,.82);
+  font-size: .52rem;
+  font-weight: 900;
+  letter-spacing: .02em;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+}
+.step-wrap .step-vel-btn:focus-visible {
+  outline: 2px solid rgba(255,255,255,.9);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.step-wrap .step-vel-btn:hover { filter: brightness(1.12); }
+.step-wrap .step-vel-btn:active { transform: translateY(1px); }
+.step-wrap .step-vel-btn { color: rgba(0,0,0,.62); }
+.step-wrap .step.on ~ .step-vel-btn { color: rgba(0,0,0,.82); }
+
+/* Velocity drives LED intensity (0..1 via --vel). */
+.step::before { opacity: calc(0.10 + (var(--vel, 0) * 0.90)); }
+body.theme-80s .step::before { opacity: calc(0.08 + (var(--vel, 0) * 0.92)); }
 .step.current {
   outline: 2px solid var(--accent-2);
   box-shadow: 0 0 0 1px rgba(255,209,102,.16), 0 0 18px rgba(255,209,102,.22);
