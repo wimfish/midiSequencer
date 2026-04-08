@@ -2,14 +2,14 @@ export const volcaProfiles = {
   beats: {
     name: "Volca Beats",
     channel: 1,
-    initialVisible: 3,
+    initialVisible: 4,
     maxTracks: 10,
     tracks: [
       { name: "Kick", midiNote: 36, freq: 80 },
       { name: "Snare", midiNote: 38, freq: 190 },
-      { name: "Lo Tom", midiNote: 45, freq: 150 },
-      { name: "Hi Tom", midiNote: 50, freq: 180 },
       { name: "Closed Hat", midiNote: 42, freq: 4200 },
+      { name: "Hi Tom", midiNote: 50, freq: 180 },
+      { name: "Lo Tom", midiNote: 45, freq: 150 },
       { name: "Open Hat", midiNote: 46, freq: 5200 },
       { name: "Clap", midiNote: 39, freq: 2400 },
       { name: "Claves", midiNote: 75, freq: 3200 },

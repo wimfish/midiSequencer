@@ -433,24 +433,33 @@ export function styleSequencerFeature() {
 
     function generatePattern() {
       const cfg = styleDefaults[state.style];
+      if (!cfg) return;
       state.bpm = cfg.bpm;
       els.bpmInput.value = cfg.bpm;
-      state.tracks.forEach((track, i) => {
+      state.tracks.forEach((track) => {
         track.steps = Array.from({ length: state.length }, () => ({ on: false, velocity: 100 }));
-        fillTrackByRole(track, i, cfg, state.variation, state.length);
+        fillTrackFromStylePreset(track, cfg, state.variation, state.length);
       });
       render();
-      setStatus(`${state.style} pattern gegenereerd`);
+      setStatus(`${state.style} · ${grooveLabel(state.variation)} · ${cfg.bpm} BPM`);
     }
 
-    function fillTrackByRole(track, trackIndex, cfg, variation, length) {
+    function grooveLabel(variation) {
+      const opt = [...els.variationSelect.options].find((o) => o.value === variation);
+      return opt?.textContent || variation;
+    }
+
+    /** Voorgeprogrammeerde patronen voor Kick, Snare, Closed Hat (hi-hat), Hi Tom (ghost) — op tracknaam. */
+    function fillTrackFromStylePreset(track, cfg, variation, length) {
+      const key = (track.name || "").trim().toLowerCase();
       const oneBar = 16;
       const repeatCount = Math.max(1, length / oneBar);
       const localSteps = Array.from({ length: oneBar }, () => false);
-      if (trackIndex === 0) applyKick(localSteps, cfg.kick, variation);
-      if (trackIndex === 1) applySnare(localSteps, cfg.snare, variation);
-      if (trackIndex === 2) applyHat(localSteps, cfg.hihat, variation);
-      if (trackIndex === 3) applyGhost(localSteps, cfg.ghost, variation);
+      if (key === "kick") applyKick(localSteps, cfg.kick, variation);
+      else if (key === "snare") applySnare(localSteps, cfg.snare, variation);
+      else if (key === "closed hat") applyHat(localSteps, cfg.hihat, variation);
+      else if (key === "hi tom") applyGhost(localSteps, cfg.ghost, variation);
+      else return;
       for (let r = 0; r < repeatCount; r++) {
         for (let i = 0; i < Math.min(oneBar, length - r * oneBar); i++) {
           track.steps[r * oneBar + i].on = !!localSteps[i];
@@ -513,7 +522,7 @@ export function styleSequencerFeature() {
       els.trackCountText.textContent = `${state.tracks.length}/${state.maxTracks} tracks`;
       els.trackHelpText.textContent =
         profile.name === "Volca Beats"
-          ? "Bij Volca Beats zijn de eerste 4 direct gevuld; 2 extra tracks kun je later toevoegen."
+          ? "Standaard: Kick, Snare, Closed Hat, Hi Tom. Genereer vult die 4 volgens stijl + groove; andere tracks leeg. Track + voegt sounds toe."
           : `Bij ${profile.name} start je met ${minimum} tracks en kun je uitbreiden tot ${state.maxTracks}.`;
       els.addTrackBtn.disabled = state.tracks.length >= state.maxTracks;
       els.removeTrackBtn.disabled = state.tracks.length <= minimum;
