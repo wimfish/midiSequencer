@@ -322,7 +322,7 @@ select option { color: #111; background: #f1ece4; }
   background: transparent;
   color: rgba(185, 195, 205, 0.75);
   font-size: .52rem;
-  font-weight: 900;
+  font-weight: 200;
   letter-spacing: .02em;
   line-height: 1;
   cursor: pointer;
