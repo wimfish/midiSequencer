@@ -82,7 +82,11 @@ export function styleSequencerFeature() {
         "midiHint",
         "settingsToggleBtn",
         "controlStack",
-        "advancedPanel"
+        "advancedPanel",
+        "addTrackModal",
+        "addTrackSelect",
+        "addTrackConfirmBtn",
+        "addTrackCancelBtn"
       ];
     }
 
@@ -178,8 +182,18 @@ export function styleSequencerFeature() {
       els.playBtn.addEventListener("click", togglePlay);
       els.saveBtn.addEventListener("click", savePattern);
       els.loadBtn.addEventListener("click", loadPattern);
-      els.addTrackBtn.addEventListener("click", () => addTrack());
+      els.addTrackBtn.addEventListener("click", () => openAddTrackDialog());
       els.removeTrackBtn.addEventListener("click", () => removeTrack());
+      els.addTrackConfirmBtn.addEventListener("click", () => {
+        const idx = Number(els.addTrackSelect.value);
+        const template = state.trackTemplates.find((t) => t.index === idx);
+        addTrackFromTemplate(template, true);
+        closeAddTrackDialog();
+      });
+      els.addTrackCancelBtn.addEventListener("click", closeAddTrackDialog);
+      els.addTrackModal.addEventListener("click", (e) => {
+        if (e.target === els.addTrackModal) closeAddTrackDialog();
+      });
       els.midiEnable.addEventListener("change", () => {
         state.midiEnabled = els.midiEnable.checked;
         setStatus(state.midiEnabled ? "MIDI aan" : "MIDI uit");
@@ -276,13 +290,27 @@ export function styleSequencerFeature() {
     }
 
     function addTrack(announce = true) {
+      // Backwards compatible: keep old behavior for load flow, but choose the first available template.
+      const remaining = getRemainingTemplates();
+      if (!remaining.length) {
+        if (announce) setStatus("Geen extra sound beschikbaar");
+        return false;
+      }
+      return addTrackFromTemplate(remaining[0], announce);
+    }
+
+    function addTrackFromTemplate(template, announce = true) {
       if (state.tracks.length >= state.maxTracks) {
         if (announce) setStatus("Maximum aantal tracks bereikt");
         return false;
       }
-      const template = state.trackTemplates[state.tracks.length];
       if (!template) {
         if (announce) setStatus("Geen extra sound beschikbaar");
+        return false;
+      }
+      const exists = state.tracks.some((t) => t.midiNote === template.midiNote);
+      if (exists) {
+        if (announce) setStatus(`${template.name} bestaat al`);
         return false;
       }
       const track = createTrackFromTemplate(template, state.tracks.length);
@@ -291,6 +319,39 @@ export function styleSequencerFeature() {
       render();
       if (announce) setStatus(`${track.name} toegevoegd (${state.tracks.length}/${state.maxTracks})`);
       return true;
+    }
+
+    function getRemainingTemplates() {
+      const used = new Set(state.tracks.map((t) => t.midiNote));
+      return state.trackTemplates.filter((t) => !used.has(t.midiNote));
+    }
+
+    function openAddTrackDialog() {
+      const remaining = getRemainingTemplates();
+      if (!remaining.length) {
+        setStatus("Geen extra sound beschikbaar");
+        return;
+      }
+
+      const modal = els.addTrackModal;
+      const select = els.addTrackSelect;
+      select.innerHTML = "";
+      remaining.forEach((t) => {
+        const opt = document.createElement("option");
+        opt.value = String(t.index);
+        opt.textContent = t.name;
+        select.appendChild(opt);
+      });
+
+      modal.classList.remove("hidden");
+      modal.setAttribute("aria-hidden", "false");
+      select.focus();
+    }
+
+    function closeAddTrackDialog() {
+      const modal = els.addTrackModal;
+      modal.classList.add("hidden");
+      modal.setAttribute("aria-hidden", "true");
     }
 
     function removeTrack(announce = true) {
@@ -1138,6 +1199,19 @@ function template() {
     </section>
 
     <main id="tracksContainer" class="tracks"></main>
+
+    <div id="addTrackModal" class="selector-modal hidden" aria-hidden="true">
+      <div class="card">
+        <div class="field">
+          <label for="addTrackSelect">Kies sound</label>
+          <select id="addTrackSelect"></select>
+        </div>
+        <div class="buttons-wrap">
+          <button id="addTrackConfirmBtn">Toevoegen</button>
+          <button id="addTrackCancelBtn" class="secondary" type="button">Annuleren</button>
+        </div>
+      </div>
+    </div>
   `;
 }
 

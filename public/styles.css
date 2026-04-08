@@ -144,6 +144,22 @@ button.secondary { background: #12171c; }
 
 select option { color: #111; background: #f1ece4; }
 
+/* ── Simple modal (track add selector) ─────────────────────── */
+.hidden { display: none !important; }
+.selector-modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 999;
+}
+.selector-modal .card {
+  width: min(560px, 100%);
+  margin: 0;
+}
+
 /* ── Switch / toggle ───────────────────────────────────────── */
 .toggle-field { min-width: 112px; }
 .switch {
