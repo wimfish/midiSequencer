@@ -320,13 +320,14 @@ select option { color: #111; background: #f1ece4; }
   padding: 0;
   border: 0;
   background: transparent;
-  color: rgba(0,0,0,.82);
+  color: rgba(185, 195, 205, 0.75);
   font-size: .52rem;
   font-weight: 900;
   letter-spacing: .02em;
   line-height: 1;
   cursor: pointer;
   user-select: none;
+  margin-top: 6px;
 }
 .step-wrap .step-vel-btn:focus-visible {
   outline: 2px solid rgba(255,255,255,.9);
@@ -335,12 +336,30 @@ select option { color: #111; background: #f1ece4; }
 }
 .step-wrap .step-vel-btn:hover { filter: brightness(1.12); }
 .step-wrap .step-vel-btn:active { transform: translateY(1px); }
-.step-wrap .step-vel-btn { color: rgba(0,0,0,.62); }
-.step-wrap .step.on ~ .step-vel-btn { color: rgba(0,0,0,.82); }
+.step-wrap .step-vel-btn { color: rgba(185, 195, 205, 0.62); }
+.step-wrap .step.on ~ .step-vel-btn { color: rgba(205, 215, 225, 0.82); }
 
-/* Velocity drives LED intensity (0..1 via --vel). */
-.step::before { opacity: calc(0.10 + (var(--vel, 0) * 0.90)); }
-body.theme-80s .step::before { opacity: calc(0.08 + (var(--vel, 0) * 0.92)); }
+/* Velocity drives LED intensity (0..1 via --vel).
+   Always render a dot: black when low, bright red when high. */
+.step::before {
+  opacity: 1;
+  filter: brightness(calc(0.25 + (var(--vel, 0) * 0.85)));
+}
+body.theme-80s .step::before {
+  opacity: 1;
+  background: radial-gradient(circle at 38% 30%, rgba(255,255,255,.10), rgba(10,9,9,.98) 55%, rgba(0,0,0,1) 100%);
+  box-shadow:
+    0 0 0 1px rgba(12,10,8,.94),
+    0 0 calc(1px + (var(--vel, 0) * 8px)) rgba(0,0,0,.55);
+}
+body.theme-80s .step.on::before {
+  border-color: rgba(120,48,17,.95);
+  background: radial-gradient(circle at 38% 30%, rgba(255,255,255,.98), rgba(255,182,128,.98) 22%, rgba(255,88,56,.99) 48%, rgba(188,16,9,.99) 74%, rgba(88,10,7,1) 100%);
+  box-shadow:
+    0 0 0 1px rgba(84,18,8,.84),
+    0 0 calc(2px + (var(--vel, 0) * 14px)) rgba(255,65,52,.92),
+    0 0 calc(4px + (var(--vel, 0) * 22px)) rgba(255,161,111,.45);
+}
 .step.current {
   outline: 2px solid var(--accent-2);
   box-shadow: 0 0 0 1px rgba(255,209,102,.16), 0 0 18px rgba(255,209,102,.22);
