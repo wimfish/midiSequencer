@@ -1180,8 +1180,10 @@ export function styleSequencerFeature() {
         const swingOffset = getSwingOffsetSeconds(track.swing, stepIndex, secondsPerStep);
         const playTime = time + swingOffset;
         const accentData = getAccentData(track.accent, stepIndex, secondsPerStep);
-        const velNorm = clamp(cell.velocity, 0, 127) / 127;
-        if (velNorm <= 0) return;
+        const v = clamp(cell.velocity, 0, 127);
+        if (v <= 0) return;
+        // Kwadratische curve: lage step-velocity (1–…) is veel stiller, 127 blijft vol.
+        const velNorm = (v / 127) * (v / 127);
         const noteOverride = getTrackStepNote(track, stepIndex);
         playTrack(track, playTime, accentData, velNorm, noteOverride);
         sendMidiNote(track, playTime, accentData, velNorm, noteOverride);
@@ -1289,7 +1291,11 @@ export function styleSequencerFeature() {
       const ch = chosenChannel - 1;
       const on = 0x90 + ch;
       const off = 0x80 + ch;
-      const velocity = clamp(Math.round(accentData.velocity * velNorm), 1, 127);
+      const velocity = clamp(
+        Math.round(1 + (accentData.velocity - 1) * velNorm),
+        1,
+        127
+      );
       const baseMs = performance.now() + Math.max(0, (whenTime - audioCtx.currentTime) * 1000);
       const gateMs = Math.round(55 + accentData.normalized * 45);
       const note = clamp(Number(noteOverride) || track.midiNote, 0, 127);
@@ -1298,7 +1304,11 @@ export function styleSequencerFeature() {
 
       if (accentData.retrigger) {
         const retriggerAt = baseMs + accentData.retriggerDelayMs;
-        const rv = clamp(Math.round(accentData.retriggerVelocity * velNorm), 1, 127);
+        const rv = clamp(
+          Math.round(1 + (accentData.retriggerVelocity - 1) * velNorm),
+          1,
+          127
+        );
         output.send([on, note, rv], retriggerAt);
         output.send([off, note, 0], retriggerAt + Math.max(26, gateMs - 20));
       }
