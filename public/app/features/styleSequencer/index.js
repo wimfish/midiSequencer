@@ -669,7 +669,7 @@ export function styleSequencerFeature() {
         actions.className = "track-actions";
         actions.innerHTML = `
           <button class="track-btn icon-btn mute-btn ${track.mute ? "active-state" : ""}" data-action="mute" title="Mute" aria-label="Mute track"><span aria-hidden="true">M</span></button>
-          <button class="track-btn icon-btn solo-btn ${track.solo ? "solo-state" : ""}" data-action="solo" title="Solo" aria-label="Solo track"><span aria-hidden="true">S</span></button>
+          <button class="track-btn icon-btn solo-btn ${track.solo ? "solo-state" : ""}" data-action="solo" title="Solo — alleen deze track (andere solo uit)" aria-label="Solo track"><span aria-hidden="true">S</span></button>
           <button class="track-btn icon-btn settings-btn ${track.settingsOpen ? "active-state" : ""}" data-action="settings" title="Instellingen" aria-label="Instellingen"><span aria-hidden="true">⚙</span></button>
           <button class="track-btn icon-btn delete-btn" data-action="delete" title="Verwijder track" aria-label="Verwijder track"><span aria-hidden="true">✕</span></button>
         `;
@@ -899,9 +899,18 @@ export function styleSequencerFeature() {
     }
 
     function toggleSolo(index) {
-      state.tracks[index].solo = !state.tracks[index].solo;
+      const track = state.tracks[index];
+      if (!track) return;
+      const turningOn = !track.solo;
+      if (turningOn) {
+        state.tracks.forEach((t, i) => {
+          t.solo = i === index;
+        });
+      } else {
+        track.solo = false;
+      }
       render();
-      setStatus(`${state.tracks[index].name} ${state.tracks[index].solo ? "solo" : "solo uit"}`);
+      setStatus(`${track.name} ${track.solo ? "solo (alleen deze track)" : "solo uit"}`);
     }
 
     function toggleTrackSettings(index = state.activeTrack) {
@@ -1151,6 +1160,14 @@ export function styleSequencerFeature() {
       state.currentStep = (state.currentStep + 1) % state.length;
     }
 
+    function getTrackStepNote(track, stepIndex) {
+      if (state.volca === "drum" && state.drumMultiMode) {
+        const roll = track.rollNotes?.[stepIndex];
+        if (Number.isFinite(roll)) return clamp(Number(roll), 0, 127);
+      }
+      return track.midiNote;
+    }
+
     function scheduleStep(stepIndex, time) {
       const soloActive = state.tracks.some((t) => t.solo);
       const secondsPerStep = 60 / state.bpm / 4;
@@ -1169,13 +1186,6 @@ export function styleSequencerFeature() {
         playTrack(track, playTime, accentData, velNorm, noteOverride);
         sendMidiNote(track, playTime, accentData, velNorm, noteOverride);
       });
-    function getTrackStepNote(track, stepIndex) {
-      if (state.volca === "drum" && state.drumMultiMode) {
-        const roll = track.rollNotes?.[stepIndex];
-        if (Number.isFinite(roll)) return clamp(Number(roll), 0, 127);
-      }
-      return track.midiNote;
-    }
 
       if (state.midiEnabled && state.midiClockEnabled) sendMidiClockBurst();
       updatePlaybackVisuals();
@@ -1288,7 +1298,8 @@ export function styleSequencerFeature() {
 
       if (accentData.retrigger) {
         const retriggerAt = baseMs + accentData.retriggerDelayMs;
-        output.send([on, note, clamp(accentData.retriggerVelocity, 1, 127)], retriggerAt);
+        const rv = clamp(Math.round(accentData.retriggerVelocity * velNorm), 1, 127);
+        output.send([on, note, rv], retriggerAt);
         output.send([off, note, 0], retriggerAt + Math.max(26, gateMs - 20));
       }
     }
