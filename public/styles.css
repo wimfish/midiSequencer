@@ -274,18 +274,35 @@ select option { color: #111; background: #f1ece4; }
 }
 .drum-roll-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 8px;
   color: var(--muted);
   font-size: .84rem;
 }
-.drum-roll-channel { display: inline-flex; align-items: center; gap: 6px; }
-.drum-roll-channel select {
+.drum-roll-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px 14px;
+}
+.drum-roll-channel,
+.drum-roll-octave {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.drum-roll-channel select,
+.drum-roll-octave select {
   min-height: 30px;
   width: 74px;
   padding: 4px 8px;
+}
+.drum-roll-octave select {
+  width: 64px;
 }
 .drum-roll-grid { display: grid; gap: 4px; }
 .drum-roll-row {
