@@ -219,6 +219,7 @@ select option { color: #111; background: #f1ece4; }
 /* ── Tracks container ──────────────────────────────────────── */
 .tracks { display: flex; flex-direction: column; gap: 12px; align-items: center; width: 100%; }
 .track {
+  position: relative;
   border: 1px solid var(--line); border-radius: 18px; padding: 12px 14px;
   background: linear-gradient(180deg, rgba(18,23,28,.98), rgba(15,19,24,.98));
   width: min(100%, 1780px); margin-inline: auto;
@@ -271,6 +272,10 @@ select option { color: #111; background: #f1ece4; }
   border-radius: 12px;
   padding: 10px;
   background: rgba(8, 12, 18, 0.55);
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
 }
 .drum-roll-head {
   display: flex;
@@ -710,9 +715,9 @@ body.theme-80s .card::before, body.theme-80s .track::before {
     repeating-linear-gradient(180deg, rgba(255,255,255,.016) 0 2px, rgba(0,0,0,.018) 2px 4px);
   mix-blend-mode: soft-light;
 }
-/* Corner screws */
+/* Corner screws (.track moet position: relative hebben — anders kan ::after buiten de kaart tekenen) */
 body.theme-80s .card::after, body.theme-80s .track::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; border-radius: inherit;
   background:
     radial-gradient(circle at 16px 16px, rgba(0,0,0,.45) 0 4px, rgba(170,170,170,.75) 4.5px, rgba(50,50,50,.95) 7px, transparent 8px),
     radial-gradient(circle at calc(100% - 16px) 16px, rgba(0,0,0,.45) 0 4px, rgba(170,170,170,.75) 4.5px, rgba(50,50,50,.95) 7px, transparent 8px),

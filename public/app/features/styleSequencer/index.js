@@ -7,6 +7,7 @@ import { requestMidiAccess, listMidiOutputs } from "../../shared/midi/access.js"
 
 const STORAGE_KEY = "volca-sequencer-save";
 const VOLCA_SELECTION_KEY = "volca-selected";
+const DRUM_ROLL_NOTES = [76, 74, 72, 71, 69, 67, 65, 64, 62, 60];
 
 export function styleSequencerFeature() {
   return { mount };
@@ -297,8 +298,7 @@ export function styleSequencerFeature() {
         settingsOpen: false,
         cursorStep: 0,
         steps: Array.from({ length: state.length }, () => ({ on: false, velocity: 100 })),
-        rollNotes: Array.from({ length: state.length }, () => null),
-        rollOctave: 0
+        rollNotes: Array.from({ length: state.length }, () => null)
       };
     }
 
@@ -310,7 +310,7 @@ export function styleSequencerFeature() {
       els.midiChannelSelect.value = String(profile.channel);
       const drumMidiNote =
         state.volca === "drum"
-          ? " · Volca Drum: toonhoogte per part via MIDI CC (niet alleen nootnr.); met Drum Multi stuurt deze app CC 28 vóór elke hit."
+          ? " · Volca Drum: met Drum Multi kies je per track het MIDI-kanaal onder instellingen."
           : "";
       els.midiHint.textContent = `Advies ${profile.name}: kanaal ${profile.channel} · tracks ${profile.initialVisible}/${profile.maxTracks} zichtbaar · swing = timing · accent = best effort${drumMidiNote}`;
       state.trackTemplates = profile.tracks.map((t, index) => ({ ...t, index }));
@@ -505,49 +505,23 @@ export function styleSequencerFeature() {
       }
     }
 
-    const DRUM_ROLL_OCTAVES = [-24, -12, 0, 12, 24];
-
-    function normalizeDrumRollOctave(v) {
-      const x = Number(v);
-      if (!Number.isFinite(x)) return 0;
-      let best = 0;
-      let bestD = Infinity;
-      for (const a of DRUM_ROLL_OCTAVES) {
-        const d = Math.abs(a - x);
-        if (d < bestD) {
-          bestD = d;
-          best = a;
-        }
-      }
-      return best;
-    }
-
-    function drumRollOctaveLabel(oct) {
-      const n = normalizeDrumRollOctave(oct) / 12;
-      if (n === 0) return "basis";
-      return n > 0 ? `+${n}` : String(n);
-    }
-
-    /**
-     * Eén octaaf (12 noten), zoals FM-sequencer: basis = part-nootoctaaf + rollOctave (−2 … +2 octaaf).
-     */
-    function drumRollNoteRangeForTrack(track) {
-      const base = clamp(Number(track.midiNote) || 60, 0, 127);
-      const oct = normalizeDrumRollOctave(track.rollOctave);
-      const octaveBlock = Math.floor(base / 12) * 12;
-      let low = clamp(octaveBlock + oct, 0, 127);
-      let high = low + 11;
-      if (high > 127) {
-        high = 127;
-        low = Math.max(0, high - 11);
-      }
-      const rows = [];
-      for (let n = high; n >= low; n--) rows.push(n);
-      return rows;
+    function drumRollNoteRangeForTrack() {
+      return [...DRUM_ROLL_NOTES];
     }
 
     function defaultRollNoteForTrack(track) {
-      return clamp(Number(track.midiNote) || 60, 0, 127);
+      const sorted = [...DRUM_ROLL_NOTES].sort((a, b) => a - b);
+      const target = clamp(Number(track.midiNote) || 60, 0, 127);
+      let best = sorted[0];
+      let bestDist = Math.abs(target - best);
+      for (let i = 1; i < sorted.length; i++) {
+        const d = Math.abs(target - sorted[i]);
+        if (d < bestDist) {
+          best = sorted[i];
+          bestDist = d;
+        }
+      }
+      return best;
     }
 
     function applyKick(steps, pattern, variation) {
@@ -600,14 +574,18 @@ export function styleSequencerFeature() {
     }
 
     function updateTrackControls() {
-      const profile = volcaProfiles[state.volca];
+      let profile = volcaProfiles[state.volca];
+      if (!profile) {
+        state.volca = els.volcaSelect?.value || "beats";
+        profile = volcaProfiles[state.volca] || volcaProfiles.beats;
+      }
       const minimum = Math.min(profile.initialVisible || 4, state.maxTracks);
       els.trackCountText.textContent = `${state.tracks.length}/${state.maxTracks} tracks`;
       els.trackHelpText.textContent =
         profile.name === "Volca Beats"
           ? "Standaard: Kick, Snare, Closed Hat, Hi Tom. Genereer vult die 4 volgens stijl + groove; andere tracks leeg. Track + voegt sounds toe."
           : profile.name === "Volca Drum" && state.drumMultiMode
-            ? "Drum Multi: de Volca kan kanaal 1–6 tegelijk afspelen. Klinken hits op dezelfde step uit sync? Check Swing per track (≠0 verschuift oneven stappen). Piano roll = 1 octaaf; Octaaf ± schuift het venster."
+            ? "Drum Multi: per track een MIDI-kanaal + piano roll (track openklappen). Swing per track verschuift oneven stappen."
           : `Bij ${profile.name} start je met ${minimum} tracks en kun je uitbreiden tot ${state.maxTracks}.`;
       els.addTrackBtn.disabled = state.tracks.length >= state.maxTracks;
       els.removeTrackBtn.disabled = state.tracks.length <= minimum;
@@ -823,35 +801,23 @@ export function styleSequencerFeature() {
     function renderDrumRoll(track, trackIndex) {
       const wrap = document.createElement("div");
       wrap.className = "drum-roll-wrap";
-      const ro = normalizeDrumRollOctave(track.rollOctave);
       wrap.innerHTML = `
         <div class="drum-roll-head">
-          <span title="12 rijen = 1 octaaf. Rijkeuze → CC 28 pitch op dit kanaal; trigger blijft de part-noot.">Drum+ piano roll</span>
-          <div class="drum-roll-head-actions">
-            <label class="drum-roll-octave">
-              Octaaf
-              <select data-role="drum-roll-octave">
-                <option value="-24" ${ro === -24 ? "selected" : ""}>−2</option>
-                <option value="-12" ${ro === -12 ? "selected" : ""}>−1</option>
-                <option value="0" ${ro === 0 ? "selected" : ""}>0</option>
-                <option value="12" ${ro === 12 ? "selected" : ""}>+1</option>
-                <option value="24" ${ro === 24 ? "selected" : ""}>+2</option>
-              </select>
-            </label>
-            <label class="drum-roll-channel">
-              Ch
-              <select data-role="drum-track-channel">
-                ${Array.from({ length: 16 }, (_, i) => `<option value="${i + 1}" ${track.midiChannel === i + 1 ? "selected" : ""}>${i + 1}</option>`).join("")}
-              </select>
-            </label>
-          </div>
+          <span title="Per stap een noot kiezen (Drum Multi).">Drum+ piano roll</span>
+          <label class="drum-roll-channel">
+            Ch
+            <select data-role="drum-track-channel">
+              ${Array.from({ length: 16 }, (_, i) => `<option value="${i + 1}" ${track.midiChannel === i + 1 ? "selected" : ""}>${i + 1}</option>`).join("")}
+            </select>
+          </label>
         </div>
       `;
 
       const grid = document.createElement("div");
       grid.className = "drum-roll-grid";
+      grid.style.setProperty("--grid-cols", String(state.length));
 
-      drumRollNoteRangeForTrack(track).forEach((note) => {
+      drumRollNoteRangeForTrack().forEach((note) => {
         const row = document.createElement("div");
         row.className = "drum-roll-row";
 
@@ -883,10 +849,6 @@ export function styleSequencerFeature() {
 
       wrap.appendChild(grid);
 
-      wrap.querySelector('[data-role="drum-roll-octave"]')?.addEventListener("change", (e) => {
-        track.rollOctave = normalizeDrumRollOctave(Number(e.target.value) || 0);
-        setStatus(`${track.name} piano roll · octaaf ${drumRollOctaveLabel(track.rollOctave)}`);
-      });
       wrap.querySelector('[data-role="drum-track-channel"]')?.addEventListener("change", (e) => {
         track.midiChannel = clamp(Number(e.target.value) || 1, 1, 16);
         setStatus(`${track.name} MIDI kanaal ${track.midiChannel}`);
@@ -962,9 +924,11 @@ export function styleSequencerFeature() {
     }
 
     function toggleTrackSettings(index = state.activeTrack) {
-      const track = state.tracks[index];
+      const i = clamp(Number(index), 0, Math.max(0, state.tracks.length - 1));
+      const track = state.tracks[i];
+      if (!track) return;
       track.settingsOpen = !track.settingsOpen;
-      state.activeTrack = index;
+      state.activeTrack = i;
       if (track.settingsOpen && !state.activeSetting) state.activeSetting = "probability";
       render();
       setStatus(`${track.name} instellingen ${track.settingsOpen ? "open" : "dicht"}`);
@@ -1158,7 +1122,7 @@ export function styleSequencerFeature() {
       const cell = normalizeCell(track.steps[stepIndex]);
       if (!cell.on) return false;
 
-      const sorted = drumRollNoteRangeForTrack(track).slice().sort((a, b) => a - b);
+      const sorted = drumRollNoteRangeForTrack().slice().sort((a, b) => a - b);
       const current = Number.isFinite(track.rollNotes?.[stepIndex])
         ? track.rollNotes[stepIndex]
         : defaultRollNoteForTrack(track);
@@ -1228,10 +1192,8 @@ export function styleSequencerFeature() {
         const swingOffset = getSwingOffsetSeconds(track.swing, stepIndex, secondsPerStep);
         const playTime = time + swingOffset;
         const accentData = getAccentData(track.accent, stepIndex, secondsPerStep);
-        const v = clamp(cell.velocity, 0, 127);
-        if (v <= 0) return;
-        // Kwadratische curve: lage step-velocity (1–…) is veel stiller, 127 blijft vol.
-        const velNorm = (v / 127) * (v / 127);
+        const velNorm = clamp(cell.velocity, 0, 127) / 127;
+        if (velNorm <= 0) return;
         const noteOverride = getTrackStepNote(track, stepIndex);
         playTrack(track, playTime, accentData, velNorm, noteOverride);
         sendMidiNote(track, playTime, accentData, velNorm, noteOverride);
@@ -1274,12 +1236,7 @@ export function styleSequencerFeature() {
       for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
       noise.buffer = buffer;
 
-      const freq =
-        state.volca === "drum" && state.drumMultiMode
-          ? midiToFreq(clamp(Number(noteOverride), 0, 127))
-          : noteOverride !== track.midiNote
-            ? midiToFreq(noteOverride)
-            : track.freq;
+      const freq = noteOverride !== track.midiNote ? midiToFreq(noteOverride) : track.freq;
       osc.frequency.setValueAtTime(freq, time);
       gain.gain.setValueAtTime(accentData.gain * velNorm, time);
       gain.gain.exponentialRampToValueAtTime(0.0001, time + accentData.gate);
@@ -1329,23 +1286,6 @@ export function styleSequencerFeature() {
       output.send([0xf8]);
     }
 
-    /**
-     * Volca Drum (Korg MIDI chart): pitch gaat via CC, niet via het nootnummer.
-     * CC 28 = Pitch 1+2 samen. Mapping: verschil in MIDI-hoogte t.o.v. part-basis → CC rond 64.
-     */
-    function drumRollToPitchCC(track, rollMidi) {
-      const base = clamp(Number(track.midiNote) || 60, 0, 127);
-      const r = clamp(Number(rollMidi), 0, 127);
-      const delta = r - base;
-      return clamp(64 + Math.round(delta * 4), 0, 127);
-    }
-
-    function sendDrumMultiPitchCC(output, ch, track, rollMidi, whenMs) {
-      const cc = 0xb0 + ch;
-      const v = drumRollToPitchCC(track, rollMidi);
-      output.send([cc, 28, v], whenMs);
-    }
-
     function sendMidiNote(
       track,
       whenTime = audioCtx.currentTime,
@@ -1361,37 +1301,16 @@ export function styleSequencerFeature() {
       const ch = chosenChannel - 1;
       const on = 0x90 + ch;
       const off = 0x80 + ch;
-      const velocity = clamp(
-        Math.round(1 + (accentData.velocity - 1) * velNorm),
-        1,
-        127
-      );
+      const velocity = clamp(Math.round(accentData.velocity * velNorm), 1, 127);
       const baseMs = performance.now() + Math.max(0, (whenTime - audioCtx.currentTime) * 1000);
       const gateMs = Math.round(55 + accentData.normalized * 45);
-      const overrideN = Number(noteOverride);
-      const pitchTarget = Number.isFinite(overrideN) ? overrideN : clamp(Number(track.midiNote), 0, 127);
-      const useDrumMultiCC =
-        state.volca === "drum" && state.drumMultiMode;
-      const note = useDrumMultiCC
-        ? clamp(Number(track.midiNote), 0, 127)
-        : clamp(pitchTarget, 0, 127);
-
-      if (useDrumMultiCC) {
-        sendDrumMultiPitchCC(output, ch, track, pitchTarget, baseMs);
-      }
+      const note = clamp(Number(noteOverride) || track.midiNote, 0, 127);
       output.send([on, note, velocity], baseMs);
       output.send([off, note, 0], baseMs + gateMs);
 
       if (accentData.retrigger) {
         const retriggerAt = baseMs + accentData.retriggerDelayMs;
-        const rv = clamp(
-          Math.round(1 + (accentData.retriggerVelocity - 1) * velNorm),
-          1,
-          127
-        );
-        if (useDrumMultiCC) {
-          sendDrumMultiPitchCC(output, ch, track, pitchTarget, retriggerAt);
-        }
+        const rv = clamp(Math.round(accentData.retriggerVelocity * velNorm), 1, 127);
         output.send([on, note, rv], retriggerAt);
         output.send([off, note, 0], retriggerAt + Math.max(26, gateMs - 20));
       }
@@ -1407,7 +1326,7 @@ export function styleSequencerFeature() {
         drumMultiMode: state.drumMultiMode,
         activeSetting: state.activeSetting,
         visibleTrackCount: state.tracks.length,
-        tracks: state.tracks.map(({ name, midiNote, freq, mute, solo, probability, swing, accent, steps, settingsOpen, cursorStep, midiChannel, rollNotes, rollOctave }) => ({
+        tracks: state.tracks.map(({ name, midiNote, freq, mute, solo, probability, swing, accent, steps, settingsOpen, cursorStep, midiChannel, rollNotes }) => ({
           name,
           midiNote,
           freq,
@@ -1420,8 +1339,7 @@ export function styleSequencerFeature() {
           settingsOpen,
           cursorStep,
           midiChannel,
-          rollNotes,
-          rollOctave
+          rollNotes
         }))
       };
       saveJson(STORAGE_KEY, payload);
@@ -1458,7 +1376,6 @@ export function styleSequencerFeature() {
         ...track,
         cursorStep: clamp(track.cursorStep ?? 0, 0, state.length - 1),
         midiChannel: clamp(Number(track.midiChannel) || Number(state.tracks[idx]?.midiChannel) || 1, 1, 16),
-        rollOctave: normalizeDrumRollOctave(track.rollOctave ?? state.tracks[idx]?.rollOctave ?? 0),
         rollNotes: Array.from({ length: state.length }, (_, i) => {
           const n = track.rollNotes?.[i];
           return Number.isFinite(n) ? clamp(Number(n), 0, 127) : null;
