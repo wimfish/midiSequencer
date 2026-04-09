@@ -7,6 +7,7 @@ import { requestMidiAccess, listMidiOutputs } from "../../shared/midi/access.js"
 
 const STORAGE_KEY = "volca-sequencer-save";
 const VOLCA_SELECTION_KEY = "volca-selected";
+const DRUM_ROLL_NOTES = [76, 74, 72, 71, 69, 67, 65, 64, 62, 60];
 
 export function styleSequencerFeature() {
   return { mount };
@@ -36,6 +37,7 @@ export function styleSequencerFeature() {
       midiOutputId: "",
       midiEnabled: false,
       midiClockEnabled: true,
+      drumMultiMode: false,
       lastClockTick: 0,
       tracks: [],
       trackTemplates: [],
@@ -79,6 +81,8 @@ export function styleSequencerFeature() {
         "midiOutputSelect",
         "midiChannelSelect",
         "clockEnable",
+        "drumMultiWrap",
+        "drumMultiToggle",
         "midiHint",
         "settingsToggleBtn",
         "controlStack",
@@ -228,6 +232,11 @@ export function styleSequencerFeature() {
       els.clockEnable.addEventListener("change", () => {
         state.midiClockEnabled = els.clockEnable.checked;
       });
+      els.drumMultiToggle.addEventListener("change", () => {
+        state.drumMultiMode = !!els.drumMultiToggle.checked;
+        render();
+        setStatus(state.drumMultiMode ? "Drum Multi aan (6ch)" : "Drum Single aan (1ch)");
+      });
       els.settingsToggleBtn.addEventListener("click", toggleSettingsPanel);
 
       globalKeydownHandler = onKeydown;
@@ -285,9 +294,11 @@ export function styleSequencerFeature() {
         probability: 100,
         swing: 0,
         accent: 100,
+        midiChannel: clamp((template.index ?? index) + 1, 1, 16),
         settingsOpen: false,
         cursorStep: 0,
-        steps: Array.from({ length: state.length }, () => ({ on: false, velocity: 100 }))
+        steps: Array.from({ length: state.length }, () => ({ on: false, velocity: 100 })),
+        rollNotes: Array.from({ length: state.length }, () => null)
       };
     }
 
@@ -307,8 +318,18 @@ export function styleSequencerFeature() {
       const defaultBpm = styleDefaults[state.style].bpm;
       state.bpm = defaultBpm;
       els.bpmInput.value = defaultBpm;
+      updateDrumMultiUI();
       if (resetPattern) generatePattern();
       render();
+    }
+
+    function updateDrumMultiUI() {
+      const isDrum = state.volca === "drum";
+      els.drumMultiWrap.classList.toggle("hidden", !isDrum);
+      if (!isDrum) {
+        state.drumMultiMode = false;
+        els.drumMultiToggle.checked = false;
+      }
     }
 
     function addTrack(announce = true) {
@@ -418,15 +439,20 @@ export function styleSequencerFeature() {
           // Back-compat from boolean saves.
           return { on: !!prev, velocity: 100 };
         });
+        track.rollNotes = Array.from({ length: state.length }, (_, i) => {
+          const prev = track.rollNotes?.[i];
+          return Number.isFinite(prev) ? clamp(Number(prev), 0, 127) : null;
+        });
         track.cursorStep = clamp(track.cursorStep ?? 0, 0, state.length - 1);
       });
       if (state.currentStep >= state.length) state.currentStep = 0;
     }
 
     function clearPattern() {
-      state.tracks.forEach(
-        (track) => (track.steps = Array.from({ length: state.length }, () => ({ on: false, velocity: 100 })))
-      );
+      state.tracks.forEach((track) => {
+        track.steps = Array.from({ length: state.length }, () => ({ on: false, velocity: 100 }));
+        track.rollNotes = Array.from({ length: state.length }, () => null);
+      });
       render();
       setStatus("Pattern gewist");
     }
@@ -438,6 +464,7 @@ export function styleSequencerFeature() {
       els.bpmInput.value = cfg.bpm;
       state.tracks.forEach((track) => {
         track.steps = Array.from({ length: state.length }, () => ({ on: false, velocity: 100 }));
+        track.rollNotes = Array.from({ length: state.length }, () => null);
         fillTrackFromStylePreset(track, cfg, state.variation, state.length);
       });
       render();
@@ -462,9 +489,31 @@ export function styleSequencerFeature() {
       else return;
       for (let r = 0; r < repeatCount; r++) {
         for (let i = 0; i < Math.min(oneBar, length - r * oneBar); i++) {
-          track.steps[r * oneBar + i].on = !!localSteps[i];
+          const globalStep = r * oneBar + i;
+          const isOn = !!localSteps[i];
+          track.steps[globalStep].on = isOn;
+          if (isOn) {
+            track.rollNotes[globalStep] = defaultRollNoteForTrack(track);
+          } else {
+            track.rollNotes[globalStep] = null;
+          }
         }
       }
+    }
+
+    function defaultRollNoteForTrack(track) {
+      const sorted = [...DRUM_ROLL_NOTES].sort((a, b) => a - b);
+      const target = clamp(Number(track.midiNote) || 60, 0, 127);
+      let best = sorted[0];
+      let bestDist = Math.abs(target - best);
+      for (let i = 1; i < sorted.length; i++) {
+        const d = Math.abs(target - sorted[i]);
+        if (d < bestDist) {
+          best = sorted[i];
+          bestDist = d;
+        }
+      }
+      return best;
     }
 
     function applyKick(steps, pattern, variation) {
@@ -523,6 +572,8 @@ export function styleSequencerFeature() {
       els.trackHelpText.textContent =
         profile.name === "Volca Beats"
           ? "Standaard: Kick, Snare, Closed Hat, Hi Tom. Genereer vult die 4 volgens stijl + groove; andere tracks leeg. Track + voegt sounds toe."
+          : profile.name === "Volca Drum" && state.drumMultiMode
+            ? "Drum Multi staat aan: per track eigen MIDI kanaal + uitgeklapte piano roll."
           : `Bij ${profile.name} start je met ${minimum} tracks en kun je uitbreiden tot ${state.maxTracks}.`;
       els.addTrackBtn.disabled = state.tracks.length >= state.maxTracks;
       els.removeTrackBtn.disabled = state.tracks.length <= minimum;
@@ -652,6 +703,10 @@ export function styleSequencerFeature() {
             render();
           });
           panel.appendChild(controlsRow);
+
+          if (state.volca === "drum" && state.drumMultiMode) {
+            panel.appendChild(renderDrumRoll(track, trackIndex));
+          }
         }
 
         head.addEventListener("click", (e) => {
@@ -729,6 +784,70 @@ export function styleSequencerFeature() {
           </div>
         </label>
       `;
+    }
+
+    function renderDrumRoll(track, trackIndex) {
+      const wrap = document.createElement("div");
+      wrap.className = "drum-roll-wrap";
+      wrap.innerHTML = `
+        <div class="drum-roll-head">
+          <span>Drum+ Piano Roll</span>
+          <label class="drum-roll-channel">
+            Ch
+            <select data-role="drum-track-channel">
+              ${Array.from({ length: 16 }, (_, i) => `<option value="${i + 1}" ${track.midiChannel === i + 1 ? "selected" : ""}>${i + 1}</option>`).join("")}
+            </select>
+          </label>
+        </div>
+      `;
+
+      const grid = document.createElement("div");
+      grid.className = "drum-roll-grid";
+
+      DRUM_ROLL_NOTES.forEach((note) => {
+        const row = document.createElement("div");
+        row.className = "drum-roll-row";
+
+        const label = document.createElement("div");
+        label.className = "drum-roll-note";
+        label.textContent = midiNoteName(note);
+        row.appendChild(label);
+
+        for (let stepIndex = 0; stepIndex < state.length; stepIndex++) {
+          const cell = document.createElement("button");
+          cell.type = "button";
+          const current = track.rollNotes?.[stepIndex];
+          const isOn = current === note;
+          cell.className = `drum-roll-cell${isOn ? " on" : ""}`;
+          cell.textContent = isOn ? "●" : "";
+          cell.addEventListener("click", () => {
+            setActiveTrack(trackIndex, false);
+            const already = track.rollNotes?.[stepIndex] === note;
+            track.rollNotes[stepIndex] = already ? null : note;
+            const c = normalizeCell(track.steps[stepIndex]);
+            c.on = track.rollNotes[stepIndex] !== null;
+            track.steps[stepIndex] = c;
+            render();
+          });
+          row.appendChild(cell);
+        }
+        grid.appendChild(row);
+      });
+
+      wrap.appendChild(grid);
+
+      wrap.querySelector('[data-role="drum-track-channel"]')?.addEventListener("change", (e) => {
+        track.midiChannel = clamp(Number(e.target.value) || 1, 1, 16);
+        setStatus(`${track.name} MIDI kanaal ${track.midiChannel}`);
+      });
+
+      return wrap;
+    }
+
+    function midiNoteName(midi) {
+      const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+      const octave = Math.floor(midi / 12) - 1;
+      return `${names[midi % 12]}${octave}`;
     }
 
     function ensureTrackCursor(trackIndex) {
@@ -849,6 +968,15 @@ export function styleSequencerFeature() {
       cell.on = !!value;
       if (typeof cell.velocity !== "number") cell.velocity = 100;
       track.steps[stepIndex] = cell;
+      if (state.volca === "drum") {
+        if (cell.on) {
+          if (!Number.isFinite(track.rollNotes?.[stepIndex])) {
+            track.rollNotes[stepIndex] = defaultRollNoteForTrack(track);
+          }
+        } else if (track.rollNotes) {
+          track.rollNotes[stepIndex] = null;
+        }
+      }
       track.cursorStep = clamp(stepIndex, 0, state.length - 1);
       render();
     }
@@ -887,7 +1015,13 @@ export function styleSequencerFeature() {
 
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        toggleSelectedStep();
+        if (!shiftActiveRollNote(1)) toggleSelectedStep();
+        return;
+      }
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (!shiftActiveRollNote(-1)) return;
         return;
       }
       const lower = e.key.toLowerCase();
@@ -959,6 +1093,28 @@ export function styleSequencerFeature() {
       }
     }
 
+    function shiftActiveRollNote(delta) {
+      if (!(state.volca === "drum" && state.drumMultiMode)) return false;
+      const track = state.tracks[state.activeTrack];
+      if (!track) return false;
+      const stepIndex = ensureTrackCursor(state.activeTrack);
+      const cell = normalizeCell(track.steps[stepIndex]);
+      if (!cell.on) return false;
+
+      const sorted = [...DRUM_ROLL_NOTES].sort((a, b) => a - b);
+      const current = Number.isFinite(track.rollNotes?.[stepIndex])
+        ? track.rollNotes[stepIndex]
+        : defaultRollNoteForTrack(track);
+      const idx = sorted.indexOf(current);
+      const currentIdx = idx >= 0 ? idx : sorted.findIndex((n) => n >= current);
+      const safeIdx = clamp(currentIdx >= 0 ? currentIdx : 0, 0, sorted.length - 1);
+      const nextIdx = clamp(safeIdx + delta, 0, sorted.length - 1);
+      track.rollNotes[stepIndex] = sorted[nextIdx];
+      render();
+      setStatus(`${track.name} step ${stepIndex + 1} noot ${midiNoteName(sorted[nextIdx])}`);
+      return true;
+    }
+
     function togglePlay() {
       if (!audioCtx) return;
       if (audioCtx.state === "suspended") audioCtx.resume();
@@ -1009,9 +1165,18 @@ export function styleSequencerFeature() {
         const accentData = getAccentData(track.accent, stepIndex, secondsPerStep);
         const velNorm = clamp(cell.velocity, 0, 127) / 127;
         if (velNorm <= 0) return;
-        playTrack(track, playTime, accentData, velNorm);
-        sendMidiNote(track, playTime, accentData, velNorm);
+        const noteOverride = getTrackStepNote(track, stepIndex);
+        playTrack(track, playTime, accentData, velNorm, noteOverride);
+        sendMidiNote(track, playTime, accentData, velNorm, noteOverride);
       });
+    function getTrackStepNote(track, stepIndex) {
+      if (state.volca === "drum" && state.drumMultiMode) {
+        const roll = track.rollNotes?.[stepIndex];
+        if (Number.isFinite(roll)) return clamp(Number(roll), 0, 127);
+      }
+      return track.midiNote;
+    }
+
       if (state.midiEnabled && state.midiClockEnabled) sendMidiClockBurst();
       updatePlaybackVisuals();
     }
@@ -1038,7 +1203,8 @@ export function styleSequencerFeature() {
       track,
       time,
       accentData = getAccentData(track.accent, 0, 60 / state.bpm / 4),
-      velNorm = 1
+      velNorm = 1,
+      noteOverride = track.midiNote
     ) {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
@@ -1048,7 +1214,8 @@ export function styleSequencerFeature() {
       for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
       noise.buffer = buffer;
 
-      osc.frequency.setValueAtTime(track.freq, time);
+      const freq = noteOverride !== track.midiNote ? midiToFreq(noteOverride) : track.freq;
+      osc.frequency.setValueAtTime(freq, time);
       gain.gain.setValueAtTime(accentData.gain * velNorm, time);
       gain.gain.exponentialRampToValueAtTime(0.0001, time + accentData.gate);
 
@@ -1071,6 +1238,10 @@ export function styleSequencerFeature() {
         osc.start(time);
         osc.stop(time + Math.min(0.14, accentData.gate + 0.03));
       }
+    }
+
+    function midiToFreq(midi) {
+      return 440 * Math.pow(2, (midi - 69) / 12);
     }
 
     function getMidiOutput() {
@@ -1097,23 +1268,28 @@ export function styleSequencerFeature() {
       track,
       whenTime = audioCtx.currentTime,
       accentData = getAccentData(track.accent, 0, 60 / state.bpm / 4),
-      velNorm = 1
+      velNorm = 1,
+      noteOverride = track.midiNote
     ) {
       const output = getMidiOutput();
       if (!output) return;
-      const ch = clamp(Number(els.midiChannelSelect.value) - 1, 0, 15);
+      const chosenChannel = state.volca === "drum" && state.drumMultiMode
+        ? clamp(Number(track.midiChannel) || 1, 1, 16)
+        : clamp(Number(els.midiChannelSelect.value) || 1, 1, 16);
+      const ch = chosenChannel - 1;
       const on = 0x90 + ch;
       const off = 0x80 + ch;
       const velocity = clamp(Math.round(accentData.velocity * velNorm), 1, 127);
       const baseMs = performance.now() + Math.max(0, (whenTime - audioCtx.currentTime) * 1000);
       const gateMs = Math.round(55 + accentData.normalized * 45);
-      output.send([on, track.midiNote, velocity], baseMs);
-      output.send([off, track.midiNote, 0], baseMs + gateMs);
+      const note = clamp(Number(noteOverride) || track.midiNote, 0, 127);
+      output.send([on, note, velocity], baseMs);
+      output.send([off, note, 0], baseMs + gateMs);
 
       if (accentData.retrigger) {
         const retriggerAt = baseMs + accentData.retriggerDelayMs;
-        output.send([on, track.midiNote, clamp(accentData.retriggerVelocity, 1, 127)], retriggerAt);
-        output.send([off, track.midiNote, 0], retriggerAt + Math.max(26, gateMs - 20));
+        output.send([on, note, clamp(accentData.retriggerVelocity, 1, 127)], retriggerAt);
+        output.send([off, note, 0], retriggerAt + Math.max(26, gateMs - 20));
       }
     }
 
@@ -1124,9 +1300,10 @@ export function styleSequencerFeature() {
         length: state.length,
         bpm: state.bpm,
         volca: state.volca,
+        drumMultiMode: state.drumMultiMode,
         activeSetting: state.activeSetting,
         visibleTrackCount: state.tracks.length,
-        tracks: state.tracks.map(({ name, midiNote, freq, mute, solo, probability, swing, accent, steps, settingsOpen, cursorStep }) => ({
+        tracks: state.tracks.map(({ name, midiNote, freq, mute, solo, probability, swing, accent, steps, settingsOpen, cursorStep, midiChannel, rollNotes }) => ({
           name,
           midiNote,
           freq,
@@ -1137,7 +1314,9 @@ export function styleSequencerFeature() {
           accent,
           steps,
           settingsOpen,
-          cursorStep
+          cursorStep,
+          midiChannel,
+          rollNotes
         }))
       };
       saveJson(STORAGE_KEY, payload);
@@ -1161,6 +1340,9 @@ export function styleSequencerFeature() {
       els.lengthSelect.value = String(state.length);
       els.volcaSelect.value = data.volca || state.volca;
       applyVolcaProfile(false);
+      state.drumMultiMode = !!data.drumMultiMode;
+      els.drumMultiToggle.checked = state.drumMultiMode;
+      updateDrumMultiUI();
 
       const wantedCount = clamp(data.visibleTrackCount || data.tracks.length || state.tracks.length, 1, state.maxTracks || state.tracks.length);
       while (state.tracks.length < wantedCount) addTrack(false);
@@ -1170,6 +1352,11 @@ export function styleSequencerFeature() {
         ...state.tracks[idx],
         ...track,
         cursorStep: clamp(track.cursorStep ?? 0, 0, state.length - 1),
+        midiChannel: clamp(Number(track.midiChannel) || Number(state.tracks[idx]?.midiChannel) || 1, 1, 16),
+        rollNotes: Array.from({ length: state.length }, (_, i) => {
+          const n = track.rollNotes?.[i];
+          return Number.isFinite(n) ? clamp(Number(n), 0, 127) : null;
+        }),
         id: crypto.randomUUID()
       }));
 
@@ -1270,6 +1457,18 @@ function template() {
             <label for="clockEnable">Clock</label>
             <label class="switch" for="clockEnable">
               <input id="clockEnable" type="checkbox" checked />
+              <span class="switch-ui" aria-hidden="true"></span>
+              <span class="switch-text">
+                <span class="switch-on">Aan</span>
+                <span class="switch-off">Uit</span>
+              </span>
+            </label>
+          </div>
+
+          <div id="drumMultiWrap" class="field toggle-field hidden">
+            <label for="drumMultiToggle">Drum Multi (6ch)</label>
+            <label class="switch" for="drumMultiToggle">
+              <input id="drumMultiToggle" type="checkbox" />
               <span class="switch-ui" aria-hidden="true"></span>
               <span class="switch-text">
                 <span class="switch-on">Aan</span>

@@ -1,0 +1,77 @@
+\1. De Kernfilosofie
+Het doel is om de Volca’s te gebruiken als krachtige geluidsmodules, aangestuurd door een DAW-interface (computer), terwijl de handen aan de knoppen van de hardware blijven voor live sound design.
+2. Interface-opbouw in de DAW
+In plaats van te kiezen tussen een simpele drumcomputer of een complexe synth, bouwen we een Hybride Template:
+•	Hoofdniveau (Ingeklapt): Eén centraal spoor (Drum Rack) dat werkt als een klassieke drumcomputer (zoals de Volca Beats). Alle instrumenten staan onder elkaar op één overzichtelijke rij.
+•	Diepteniveau (Uitgeklapt): Per instrument kan een volledige Piano Roll worden geopend. Hierdoor kan elk drum-onderdeel (bijv. een kick of snare) ineens melodisch worden bespeeld als een baslijn of lead.
+3. MIDI-Configuratie: Multi vs Single
+Om maximale flexibiliteit te behouden, is de "wijsheid" om de apparaten altijd in Multi-Channel Mode te laten staan:
+•	Volca Drum+: Gebruikt 6 MIDI-kanalen (1 t/m 6). Elk slot is een blanco synthesizer die zowel ritmisch als melodisch gebruikt kan worden.
+•	Volca Sample 2+: Gebruikt 8 tot 10 MIDI-kanalen. Hiermee verander je de Sample 2 in een multitimbrale sampler waarbij elk geluid (vocal, kick, atmos) zijn eigen onafhankelijke melodie en automatisering heeft.
+•	Volca FM2: Gebruikt 1 MIDI-kanaal en biedt 6-stemmige polyfonie voor akkoorden.
+4. Live Performance & Workflow
+•	Knoppen vs. Sequencer: De DAW bepaalt de "noten" (de structuur). De hardware bepaalt de "energie" (de klank). Live aan de knoppen draaien (Pitch, Modulator, Bitcrush) werkt direct samen met de MIDI uit de computer.
+•	De "Slice" Beperking: Let op dat sequencer-specifieke functies zoals Slice en Active Step alleen werken op noten die in de interne Volca-sequencer staan. Voor een live-set is een hybride vorm (basis uit de DAW, "ratels" uit de Volca) aan te raden.
+•	Automatisering: Gebruik MIDI CC-kanalen in de DAW om parameters zoals de Start Point (Sample 2) of Wavefolder (Drum) op afstand te besturen.
+5. Hardware & Connectiviteit
+•	MIDI Thru Box: Essentieel om het signaal van de computer te verdelen over de verschillende Volca's zonder vertraging.
+•	USB: De Sample 2 kan direct via USB, de Drum moet altijd via een 5-pins MIDI-kabel.
+•	Templates: Maak één keer een perfecte mapping in je DAW waarbij de kanalen en namen ("VDrum 1 [Kick]", etc.) al goed staan. Dit bespaart uren werk bij elke nieuwe track.
+6. Conclusie
+Door de Volca's via een "uitklapbare" interface aan te sturen, combineer je de snelheid van een drumcomputer met de diepgang van een volledige synthesizer-studio. Beperking in kanalen dwingt tot creativiteit, maar de Multi-mode zorgt ervoor dat je nooit tegen technische muren aanloopt zodra je melodisch wilt gaan werken.
+
+Dat is een hele goede vraag. Als je de Volca Drum aanstuurt vanuit je DAW (als "Single" of "Multi"), verandert de manier waarop je het geluid aanpast op de hardware eigenlijk niet.
+
+Het grote verschil is: Wie bepaalt de nootjes?
+
+1. Geluid aanpassen op de Volca (De hardware-kant)
+Of je nu MIDI gebruikt of niet, de knoppen op de Volca Drum blijven altijd actief.
+
+Selecteer je Part: Je drukt op de Volca op de knop van Part 1 (bijv. je Kick).
+
+Draai aan de knoppen: Je verandert de Source, Pitch of Modulator.
+
+Resultaat: Je hoort het geluid direct veranderen terwijl de DAW de nootjes blijft sturen.
+
+Dit werkt precies hetzelfde als bij de Volca Beats: je programmeert de "muziek" in je computer, maar je boetseert de "klank" met je handen op het apparaat.
+
+2. De Sequencer-verwarring
+Je vroeg: "Gaat dat ook via de sequencer daar dat ik de eerste 6 het geluid kan veranderen?"
+
+Hier moet je een scherp onderscheid maken:
+
+De interne Sequencer (op de Volca): Als je MIDI uit de DAW gebruikt, gebruik je de knopjes 1 t/m 16 op de Volca meestal niet om noten te programmeren. Die knoppen gebruik je dan alleen om te kiezen welke Part (1 t/m 6) je wilt bewerken.
+
+De "Edit" modus: Je selecteert Part 1 (de onderste rij knoppen op de hardware) en daarna kun je alle parameters voor dat specifieke geluid aanpassen.
+
+3. "Drum" vs "Drum+" in je interface
+Hoe dit er in de praktijk uitziet als je het "simpel" aanbiedt (zoals de Beats) versus "uitgebreid":
+
+In de "Simpele" modus (Beats-stijl):
+Je ziet in je DAW één Piano Roll.
+
+Noat C1 triggert Part 1 op de Volca.
+
+Noot D1 triggert Part 2 op de Volca.
+
+Sound tweak: Wil je het geluid van de kick veranderen? Dan druk je op de Volca op "Part 1" en draai je aan de Pitch-knop. De computer blijft gewoon C1 sturen, maar de Volca maakt er een ander geluid van.
+
+In de "Melodische" modus (Drum+):
+Je klapt het spoor uit naar de volledige Piano Roll van Part 1.
+
+Je tekent een baslijn (C1, E1, G1).
+
+Sound tweak: Ook nu druk je op de Volca op "Part 1" om het geluid aan te passen. Het enige verschil is dat je nu hoort hoe je klankverandering reageert op verschillende toonhoogtes.
+
+4. Waarom de Drum "moeilijker" lijkt dan de Beats
+Bij de Volca Beats heeft elk geluid zijn eigen vaste knop (bijv. een fysieke knop voor Kick Click). Bij de Volca Drum is dat anders:
+
+Je moet eerst de Part selecteren (bijv. Part 3).
+
+Dan pas hebben de knoppen effect op dat specifieke geluid.
+
+Samengevat
+De werking van de hardware blijft hetzelfde. De keuze voor Single of Multi in je DAW bepaalt alleen of je die 6 instrumenten op één "drum-lijntje" ziet (Beats-stijl) of dat je elk instrument een eigen "piano-keyboard" geeft (Synth-stijl).
+
+In beide gevallen blijf je de Volca zelf gebruiken als je "mengpaneel" voor het geluid. Zie je het voor je hoe je met je ene hand de beat tekent in de DAW en met je andere hand de "Source" van Part 1 verandert op de Volca?
+

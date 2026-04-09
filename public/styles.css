@@ -264,6 +264,59 @@ select option { color: #111; background: #f1ece4; }
 .range-row output { color: var(--accent); }
 .range-short { color: var(--accent-2); font-size: .78rem; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
 
+/* ── Drum+ piano roll in track panel ───────────────────────── */
+.drum-roll-wrap {
+  margin-top: 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(8, 12, 18, 0.55);
+}
+.drum-roll-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: .84rem;
+}
+.drum-roll-channel { display: inline-flex; align-items: center; gap: 6px; }
+.drum-roll-channel select {
+  min-height: 30px;
+  width: 74px;
+  padding: 4px 8px;
+}
+.drum-roll-grid { display: grid; gap: 4px; }
+.drum-roll-row {
+  display: grid;
+  grid-template-columns: 44px repeat(var(--grid-cols, 16), minmax(14px, 1fr));
+  gap: 4px;
+  align-items: center;
+}
+.drum-roll-note {
+  font-size: .68rem;
+  color: var(--muted);
+  text-align: right;
+  padding-right: 4px;
+}
+.drum-roll-cell {
+  min-height: 18px;
+  width: 100%;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid rgba(90,108,126,.45);
+  background: rgba(23, 28, 36, 0.9);
+  color: #9fb8d0;
+  line-height: 1;
+  font-size: .68rem;
+}
+.drum-roll-cell.on {
+  border-color: rgba(111,222,255,.85);
+  background: linear-gradient(180deg, #2e7ca0 0%, #205a79 100%);
+  color: #dff6ff;
+}
+
 /* ── Grid shell ────────────────────────────────────────────── */
 .grid-shell {
   display: flex; justify-content: center; align-items: center;
