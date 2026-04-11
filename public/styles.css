@@ -294,11 +294,16 @@ select option { color: #111; background: #f1ece4; }
   gap: 10px 14px;
 }
 .drum-roll-channel,
+.drum-roll-channel-hint,
 .drum-roll-octave {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+}
+.drum-roll-channel-hint {
+  font-size: 0.84rem;
+  color: var(--muted);
 }
 .drum-roll-channel select,
 .drum-roll-octave select {

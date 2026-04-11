@@ -1,0 +1,55 @@
+Volca sequencer
+
+Als je zelf een sequencer schrijft in Node.js (waarschijnlijk met de Web MIDI API in de frontend of een library als midi in de backend), dan heb je de volledige controle. Dat betekent ook dat je zelf de "verkeersregelaar" moet zijn voor de data die naar de Volca Drum gaat.
+
+Het probleem dat kanaal 2 kanaal 1 afkapt bij een gelijktijdige step, zit hem in de prioriteit van de MIDI-events en hoe de hardware ze ontvangt.
+
+Hier zijn de drie meest waarschijnlijke oorzaken in je eigen code en hoe je ze tackelt:
+
+1. De "Running Status" en Berichten-volgorde
+In MIDI-protocollen kan het versturen van twee Note On berichten op exact hetzelfde moment (0ms verschil) ervoor zorgen dat de hardware de eerste noot negeert of direct afbreekt om de tweede te verwerken.
+
+Oplossing: Voeg een micro-delay toe in je Node.js logic.
+In plaats van alle MIDI-events van een sequencer-step in één loop te "fire-and-forget", kun je een minuscule pauze (bijv. 1ms of zelfs minder) inbouwen tussen de verschillende kanalen.
+
+JavaScript
+// Slecht: Alles tegelijk
+tracks.forEach(track => sendMidi(track.note, track.channel));
+
+// Beter: Spreiden over micro-tijd
+tracks.forEach((track, index) => {
+  setTimeout(() => {
+    sendMidi(track.note, track.channel);
+  }, index * 1.5); // 1.5ms tussen elk kanaal
+});
+2. Note-On / Note-Off Conflict
+Als je sequencer een noot op step 1 stopt (Note Off) en tegelijkertijd een noot op step 1 van een ander kanaal start (Note On), kan de Volca Drum dit zien als een signaal om de voice-engine te resetten.
+
+Check je code op:
+
+Worden Note Off berichten verstuurd vóór de nieuwe Note On berichten?
+
+Probeer voor de Volca Drum eens om geen Note Off te sturen voor de percussie-onderdelen, of stuur ze pas na 50ms. De Volca Drum negeert de lengte van de noot meestal toch (behalve bij de waveguide), dus een korte trigger is genoeg.
+
+3. CC-berichten "Vervuiling"
+Stuur je ook Pitch (toonhoogte) mee via CC-berichten of Pitch Bend per step?
+De Volca Drum raakt snel "overstroomd" als je op meerdere kanalen tegelijk CC-data én Note-data stuurt via één MIDI-poort (de UM-ONE).
+
+Hardware-beperking: De MIDI-baudrate is traag (31.250 bits per seconde). Als jij op 6 kanalen tegelijk een Note On én een CC bericht voor pitch stuurt op één sequencer-tick, ontstaat er een fysieke file in de kabel.
+
+De oplossing in je code:
+Stuur de Pitch CC-data een fractie vóór de Note-On. Zo staat de "oscillator" al op de juiste hoogte voordat de noot getriggerd wordt.
+
+4. Specifiek voor de Volca Drum: "Voice Stealing"
+De Volca Drum heeft 6 parts. Als jij in je eigen DAW part 1 t/m 6 aanstuurt op MIDI-kanaal 1 t/m 6, zorg er dan voor dat je in je code de Velocity goed beheert. De Volca Drum gebruikt Velocity soms om te bepalen welke stem prioriteit krijgt.
+
+Debug-tip voor je Node.js app:
+Gebruik een tool als MIDI-OX (Windows) of Snoize MIDI Monitor (Mac).
+
+Laat je Node.js app MIDI sturen naar een virtuele poort.
+
+Kijk in de monitor of de berichten voor kanaal 1 en 2 echt op exact hetzelfde tijdstip binnenkomen.
+
+Als er Note Off van kanaal 1 tussen de Note On van kanaal 2 staat, heb je je boosdoener gevonden.
+
+Hoe heb je de timing in Node.js geregeld? Gebruik je setTimeout, setInterval of de Web Audio API Clock? (setTimeout in Node/Chrome is berucht om zijn onnauwkeurigheid voor muziek).
