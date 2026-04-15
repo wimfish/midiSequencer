@@ -1,0 +1,43 @@
+Dat is een briljant concept! Wat jij omschrijft, is eigenlijk een vorm van "Action-based MIDI editing". In plaats van dat de locatie (waar je klikt) het octaaf bepaalt, wordt het octaaf een eigenschap van de handeling zelf.
+
+Laten we dit "Octave Stacking 2.0" noemen. Dit zou de interface radicaal veranderen:
+
+Hoe dit eruit zou zien (De "12-Rijen Interface")
+In plaats van een eindeloze verticale ladder, heb je een vast venster van slechts 12 rijen hoog (C tot en met B).
+
+Selectie: Je kiest de nootnaam (bijv. de rij van de 'G').
+
+Interactie (Long Press): Je klikt op de cel en houdt deze ingedrukt.
+
+Octaaf-keuze: Terwijl je inhoudt, sleep je een klein stukje omhoog of omlaag (of er verschijnt een mini-menuutje rond je cursor) om het octaaf te kiezen (C1, C2, C3, etc.).
+
+Visuele feedback: De cel krijgt een specifieke kleur of een groot getal in het midden (bijv. een "4" voor G4) om aan te geven welk octaaf het is.
+
+De voordelen van deze methode
+Nul scrollen: Je hele harmonische universum past op een postzegel.
+
+Snelheid: Je hoeft je muis niet 20 centimeter omhoog te bewegen om van een sub-bass naar een lead te gaan; je blijft op dezelfde plek op je scherm.
+
+Overzicht: Je ziet in één oogopslag de "shape" van je melodie (de intervallen), terwijl de cijfers je vertellen hoe breed het arrangement is.
+
+Bestaat dit al?
+Nog niet als de "standaard" in grote DAW's zoals Ableton of FL Studio, maar we komen dichtbij via deze omwegen:
+
+MPE Controllers (zoals de Roli of Sensel Morph): Sommige touch-controllers laten je toe om door te drukken of te sliden om parameters (zoals pitch/octaaf) te veranderen terwijl je de noot plaatst.
+
+Tracker Software (zoals Renoise of Polyend Tracker): Dit komt het dichtst bij jouw idee. In een Tracker werk je niet met een piano roll, maar met kolommen. Je typt een noot in (bijv. C) en het getal ernaast (bijv. 4) bepaalt het octaaf. Het is extreem compact en je hoeft nooit verticaal te scrollen voor octaven.
+
+Custom Scripts (Reaper): Gebruikers van de DAW Reaper schrijven vaak eigen "Piano Roll" scripts. Jouw idee zou daar technisch gezien gebouwd kunnen worden als een alternatieve editor.
+
+Een creatieve "DIY" oplossing voor nu
+Als je dit nu wilt simuleren in je eigen DAW, kun je het volgende proberen:
+
+Gebruik de Scale Fold (zodat je maar 7 of 12 rijen ziet).
+
+Plaats al je noten in één octaaf (bijv. alles in octaaf 3).
+
+Gebruik een shortcut (vaak Shift + Pijltje omhoog/omlaag) om een geselecteerde noot direct een octaaf te verplaatsen.
+
+Hoewel de noot dan "verdwijnt" uit je zicht als je niet oppast, geeft het wel die snelle workflow waarbij je niet hoeft te slepen en te scrollen.
+
+Zou jij het prettig vinden als de noten dan ook verschillende kleuren hebben per octaaf, of heb je liever dat alleen het cijfer in de cel verandert?

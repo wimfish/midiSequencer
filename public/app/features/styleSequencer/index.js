@@ -7,8 +7,22 @@ import { requestMidiAccess, listMidiOutputs } from "../../shared/midi/access.js"
 
 const STORAGE_KEY = "volca-sequencer-save";
 const VOLCA_SELECTION_KEY = "volca-selected";
-/** Zelfde stappen als FM-sequencer Octaaf (−2 … +2), in halve tonen t.o.v. part-octaaf. */
-const DRUM_ROLL_OCTAVE_STEPS = [-24, -12, 0, 12, 24];
+const DRUM_ROLL_OCTAVE_MIN = 1;
+const DRUM_ROLL_OCTAVE_MAX = 5;
+const DRUM_ROLL_NOTE_ROWS = [
+  { name: "B", noteIndex: 11 },
+  { name: "A#", noteIndex: 10 },
+  { name: "A", noteIndex: 9 },
+  { name: "G#", noteIndex: 8 },
+  { name: "G", noteIndex: 7 },
+  { name: "F#", noteIndex: 6 },
+  { name: "F", noteIndex: 5 },
+  { name: "E", noteIndex: 4 },
+  { name: "D#", noteIndex: 3 },
+  { name: "D", noteIndex: 2 },
+  { name: "C#", noteIndex: 1 },
+  { name: "C", noteIndex: 0 }
+];
 /** Volca Drum: meerdere parts tegelijk — CC + note op exact dezelfde ms geeft vaak gedropte/verkeerde pitch. */
 const DRUM_MULTI_CC_LEAD_MS = 14;
 /** Zie `Volca sequencer.txt`: micro-delay tussen kanalen/hits op dezelfde tick om MIDI-bus rust te geven. */
@@ -51,7 +65,8 @@ export function styleSequencerFeature() {
       lastClockTick: 0,
       tracks: [],
       trackTemplates: [],
-      maxTracks: 0
+      maxTracks: 0,
+      drumRollPointerHold: null
     };
 
     const settingMeta = {
@@ -139,6 +154,7 @@ export function styleSequencerFeature() {
 
       globalPointerUpHandler = () => {
         state.drawMode = null;
+        state.drumRollPointerHold = null;
       };
       window.addEventListener("pointerup", globalPointerUpHandler);
     }
@@ -315,7 +331,7 @@ export function styleSequencerFeature() {
         cursorStep: 0,
         steps: Array.from({ length: state.length }, () => ({ on: false, velocity: 100 })),
         rollNotes: Array.from({ length: state.length }, () => null),
-        rollOctave: 0
+        rollInputOctave: midiToDrumRollOctave(template.midiNote)
       };
     }
 
@@ -526,55 +542,29 @@ export function styleSequencerFeature() {
       }
     }
 
-    function normalizeRollOctave(v) {
-      const x = Number(v);
-      if (!Number.isFinite(x)) return 0;
-      let best = 0;
-      let bestD = Infinity;
-      for (const step of DRUM_ROLL_OCTAVE_STEPS) {
-        const d = Math.abs(step - x);
-        if (d < bestD) {
-          bestD = d;
-          best = step;
-        }
-      }
-      return best;
+    function normalizeRollInputOctave(v) {
+      return clamp(Number(v) || DRUM_ROLL_OCTAVE_MIN, DRUM_ROLL_OCTAVE_MIN, DRUM_ROLL_OCTAVE_MAX);
     }
 
-    /** Precies 12 opeenvolgende MIDI-noten: octaaf van de part + rollOctave (zoals FM). Hoog → laag in de lijst. */
-    function drumRollNoteRangeForTrack(track) {
-      const base = clamp(Number(track.midiNote) || 60, 0, 127);
-      const octaveRoot = Math.floor(base / 12) * 12;
-      const oct = normalizeRollOctave(track.rollOctave);
-      let low = clamp(octaveRoot + oct, 0, 127);
-      let high = low + 11;
-      if (high > 127) {
-        high = 127;
-        low = Math.max(0, high - 11);
-      }
-      const rows = [];
-      for (let n = high; n >= low; n--) rows.push(n);
-      return rows;
+    function midiToDrumRollOctave(midi) {
+      const octave = Math.floor((clamp(Number(midi) || 60, 0, 127) / 12)) - 1;
+      return clamp(octave, DRUM_ROLL_OCTAVE_MIN, DRUM_ROLL_OCTAVE_MAX);
+    }
+
+    function drumRollMidiFromNoteAndOctave(noteIndex, octave) {
+      return clamp((normalizeRollInputOctave(octave) + 1) * 12 + clamp(noteIndex, 0, 11), 0, 127);
     }
 
     function defaultRollNoteForTrack(track) {
-      const notes = drumRollNoteRangeForTrack(track).slice().sort((a, b) => a - b);
-      if (!notes.length) return clamp(Number(track.midiNote) || 60, 0, 127);
       const target = clamp(Number(track.midiNote) || 60, 0, 127);
-      let best = notes[0];
-      let bestDist = Math.abs(target - best);
-      for (let i = 1; i < notes.length; i++) {
-        const d = Math.abs(target - notes[i]);
-        if (d < bestDist) {
-          best = notes[i];
-          bestDist = d;
-        }
-      }
-      return best;
+      const noteIndex = target % 12;
+      const octave = normalizeRollInputOctave(track.rollInputOctave ?? midiToDrumRollOctave(target));
+      return drumRollMidiFromNoteAndOctave(noteIndex, octave);
     }
 
     /** Pianoroll-slot uit state/JSON: alleen geldig als het echt een MIDI-noot is (ook na string uit storage). */
     function parseRollSlot(value) {
+      if (value === null || value === undefined || value === "") return null;
       const n = Number(value);
       if (!Number.isFinite(n)) return null;
       return clamp(Math.round(n), 0, 127);
@@ -659,7 +649,7 @@ export function styleSequencerFeature() {
         profile.name === "Volca Beats"
           ? "Standaard: Kick, Snare, Closed Hat, Hi Tom. Genereer vult die 4 volgens stijl + groove; andere tracks leeg. Track + voegt sounds toe."
           : profile.name === "Volca Drum" && state.drumMultiMode
-            ? `Drum Multi: piano roll toont 12 noten per octaaf; Octaaf verschuift het venster (zoals FM). Elke track = eigen MIDI-kanaal = eigen Volca-part.${dupHint}`
+            ? `Drum Multi: vaste 12x${state.length} piano roll zonder scroll. Houd klik vast en druk 1-5 voor octaaf per noot.${dupHint}`
             : `Bij ${profile.name} start je met ${minimum} tracks en kun je uitbreiden tot ${state.maxTracks}.`;
       els.addTrackBtn.disabled = state.tracks.length >= state.maxTracks;
       els.removeTrackBtn.disabled = state.tracks.length <= minimum;
@@ -875,26 +865,12 @@ export function styleSequencerFeature() {
     function renderDrumRoll(track, trackIndex) {
       const wrap = document.createElement("div");
       wrap.className = "drum-roll-wrap";
-      const ro = normalizeRollOctave(track.rollOctave);
-      const range = drumRollNoteRangeForTrack(track);
-      const lowMidi = range[range.length - 1];
-      const highMidi = range[0];
-      const rangeLabel =
-        range.length >= 2 ? `${midiNoteName(lowMidi)}–${midiNoteName(highMidi)}` : "";
+      track.rollInputOctave = normalizeRollInputOctave(track.rollInputOctave ?? midiToDrumRollOctave(track.midiNote));
+      const selectedStep = ensureTrackCursor(trackIndex);
       wrap.innerHTML = `
         <div class="drum-roll-head">
-          <span title="12 rijen = 1 octaaf. Rij = toonhoogte: in de browser via MIDI-frequentie; naar de Volca Drum via CC 28 (nootnr. triggert alleen het part).">${rangeLabel ? `${rangeLabel} · ` : ""}Drum+ piano roll</span>
+          <span title="12 rijen = notennamen. Klik en houd vast, druk daarna 1-5 om octaaf te kiezen.">Drum+ piano roll</span>
           <div class="drum-roll-head-actions">
-            <label class="drum-roll-octave">
-              Octaaf
-              <select data-role="drum-roll-octave">
-                <option value="-24" ${ro === -24 ? "selected" : ""}>−2</option>
-                <option value="-12" ${ro === -12 ? "selected" : ""}>−1</option>
-                <option value="0" ${ro === 0 ? "selected" : ""}>0</option>
-                <option value="12" ${ro === 12 ? "selected" : ""}>+1</option>
-                <option value="24" ${ro === 24 ? "selected" : ""}>+2</option>
-              </select>
-            </label>
             <label class="drum-roll-channel">
               Ch
               <select data-role="drum-track-channel">
@@ -917,35 +893,50 @@ export function styleSequencerFeature() {
       stepsHead.appendChild(headSpacer);
       for (let stepIndex = 0; stepIndex < state.length; stepIndex++) {
         const headCell = document.createElement("div");
-        headCell.className = "drum-roll-step-num";
+        headCell.className = `drum-roll-step-num${stepIndex === selectedStep ? " selected" : ""}`;
         headCell.textContent = String(stepIndex + 1);
+        headCell.title = "Step kolom";
+        headCell.addEventListener("click", () => {
+          setActiveTrack(trackIndex, false);
+          track.cursorStep = stepIndex;
+          render();
+          setStatus(`${track.name} step ${stepIndex + 1} geselecteerd`);
+        });
         stepsHead.appendChild(headCell);
       }
       grid.appendChild(stepsHead);
 
-      drumRollNoteRangeForTrack(track).forEach((note) => {
+      DRUM_ROLL_NOTE_ROWS.forEach((rowMeta) => {
         const row = document.createElement("div");
         row.className = "drum-roll-row";
 
         const label = document.createElement("div");
         label.className = "drum-roll-note";
-        label.textContent = midiNoteName(note);
+        label.textContent = rowMeta.name;
         row.appendChild(label);
 
         for (let stepIndex = 0; stepIndex < state.length; stepIndex++) {
           const cell = document.createElement("button");
           cell.type = "button";
-          const current = track.rollNotes?.[stepIndex];
-          const isOn = current === note;
-          cell.className = `drum-roll-cell${isOn ? " on" : ""}`;
+          const current = parseRollSlot(track.rollNotes?.[stepIndex]);
+          const isOn = current !== null && current % 12 === rowMeta.noteIndex;
+          const octaveClass = isOn ? ` octave-${midiToDrumRollOctave(current)}` : "";
+          const selectedClass = stepIndex === selectedStep ? " selected-col" : "";
+          cell.className = `drum-roll-cell${isOn ? " on" : ""}${octaveClass}${selectedClass}`;
           cell.textContent = isOn ? "●" : "";
-          cell.addEventListener("click", () => {
-            setActiveTrack(trackIndex, false);
-            const already = track.rollNotes?.[stepIndex] === note;
-            track.rollNotes[stepIndex] = already ? null : note;
+          const applyRowAtOctave = (octave) => {
+            const nextMidi = drumRollMidiFromNoteAndOctave(rowMeta.noteIndex, octave);
+            const already = parseRollSlot(track.rollNotes?.[stepIndex]) === nextMidi;
+            track.rollNotes[stepIndex] = already ? null : nextMidi;
             const c = normalizeCell(track.steps[stepIndex]);
             c.on = track.rollNotes[stepIndex] !== null;
             track.steps[stepIndex] = c;
+          };
+          cell.addEventListener("pointerdown", () => {
+            setActiveTrack(trackIndex, false);
+            track.cursorStep = stepIndex;
+            applyRowAtOctave(track.rollInputOctave);
+            state.drumRollPointerHold = { trackIndex, stepIndex, noteIndex: rowMeta.noteIndex };
             render();
           });
           row.appendChild(cell);
@@ -955,12 +946,6 @@ export function styleSequencerFeature() {
 
       wrap.appendChild(grid);
 
-      wrap.querySelector('[data-role="drum-roll-octave"]')?.addEventListener("change", (e) => {
-        track.rollOctave = normalizeRollOctave(Number(e.target.value) || 0);
-        const step = track.rollOctave / 12;
-        setStatus(`${track.name} piano roll octaaf ${step === 0 ? "basis" : (step > 0 ? "+" : "") + step}`);
-        render();
-      });
       wrap.querySelector('[data-role="drum-track-channel"]')?.addEventListener("change", (e) => {
         track.midiChannel = clamp(Number(e.target.value) || 1, 1, 16);
         setStatus(`${track.name} MIDI kanaal ${track.midiChannel}`);
@@ -1136,6 +1121,25 @@ export function styleSequencerFeature() {
     }
 
     function onKeydown(e) {
+      if (state.drumRollPointerHold) {
+        const octaveNumber = Number(e.key);
+        if (octaveNumber >= DRUM_ROLL_OCTAVE_MIN && octaveNumber <= DRUM_ROLL_OCTAVE_MAX) {
+          e.preventDefault();
+          const hold = state.drumRollPointerHold;
+          const track = state.tracks[hold.trackIndex];
+          if (!track) return;
+          track.rollInputOctave = normalizeRollInputOctave(octaveNumber);
+          const nextMidi = drumRollMidiFromNoteAndOctave(hold.noteIndex, octaveNumber);
+          track.rollNotes[hold.stepIndex] = nextMidi;
+          const c = normalizeCell(track.steps[hold.stepIndex]);
+          c.on = true;
+          track.steps[hold.stepIndex] = c;
+          setStatus(`${track.name} step ${hold.stepIndex + 1} ${midiNoteName(nextMidi)} (octaaf ${octaveNumber})`);
+          render();
+          return;
+        }
+      }
+
       const tag = document.activeElement?.tagName;
       const isTyping = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
       if (e.code === "Space" && !isTyping) {
@@ -1258,16 +1262,11 @@ export function styleSequencerFeature() {
       const cell = normalizeCell(track.steps[stepIndex]);
       if (!cell.on) return false;
 
-      const sorted = drumRollNoteRangeForTrack(track).slice().sort((a, b) => a - b);
       const parsed = parseRollSlot(track.rollNotes?.[stepIndex]);
       const current = parsed !== null ? parsed : defaultRollNoteForTrack(track);
-      const idx = sorted.indexOf(current);
-      const currentIdx = idx >= 0 ? idx : sorted.findIndex((n) => n >= current);
-      const safeIdx = clamp(currentIdx >= 0 ? currentIdx : 0, 0, sorted.length - 1);
-      const nextIdx = clamp(safeIdx + delta, 0, sorted.length - 1);
-      track.rollNotes[stepIndex] = sorted[nextIdx];
+      track.rollNotes[stepIndex] = clamp(current + delta, 0, 127);
       render();
-      setStatus(`${track.name} step ${stepIndex + 1} noot ${midiNoteName(sorted[nextIdx])}`);
+      setStatus(`${track.name} step ${stepIndex + 1} noot ${midiNoteName(track.rollNotes[stepIndex])}`);
       return true;
     }
 
@@ -1576,7 +1575,7 @@ export function styleSequencerFeature() {
         drumMultiMode: state.drumMultiMode,
         activeSetting: state.activeSetting,
         visibleTrackCount: state.tracks.length,
-        tracks: state.tracks.map(({ name, midiNote, freq, mute, solo, probability, swing, accent, steps, settingsOpen, cursorStep, midiChannel, rollNotes, rollOctave }) => ({
+        tracks: state.tracks.map(({ name, midiNote, freq, mute, solo, probability, swing, accent, steps, settingsOpen, cursorStep, midiChannel, rollNotes, rollInputOctave }) => ({
           name,
           midiNote,
           freq,
@@ -1590,7 +1589,7 @@ export function styleSequencerFeature() {
           cursorStep,
           midiChannel,
           rollNotes,
-          rollOctave
+          rollInputOctave
         }))
       };
       saveJson(STORAGE_KEY, payload);
@@ -1627,7 +1626,7 @@ export function styleSequencerFeature() {
         ...track,
         cursorStep: clamp(track.cursorStep ?? 0, 0, state.length - 1),
         midiChannel: clamp(Number(track.midiChannel) || Number(state.tracks[idx]?.midiChannel) || 1, 1, 16),
-        rollOctave: normalizeRollOctave(track.rollOctave ?? state.tracks[idx]?.rollOctave ?? 0),
+        rollInputOctave: normalizeRollInputOctave(track.rollInputOctave ?? state.tracks[idx]?.rollInputOctave ?? midiToDrumRollOctave(track.midiNote)),
         rollNotes: Array.from({ length: state.length }, (_, i) => parseRollSlot(track.rollNotes?.[i])),
         id: crypto.randomUUID()
       }));
