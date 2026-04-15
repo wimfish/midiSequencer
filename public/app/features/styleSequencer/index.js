@@ -1337,9 +1337,9 @@ export function styleSequencerFeature() {
         const swingOffset = getSwingOffsetSeconds(track.swing, stepIndex, secondsPerStep);
         const playTime = time + swingOffset;
         const accentData = getAccentData(track.accent, stepIndex, secondsPerStep);
-        const velNorm = clamp(cell.velocity, 0, 127) / 127;
-        if (velNorm <= 0) return;
-        playList.push({ track, trackOrder, playTime, accentData, velNorm });
+        const userVelocity = clamp(cell.velocity, 0, 127);
+        if (userVelocity <= 0) return;
+        playList.push({ track, trackOrder, playTime, accentData, userVelocity });
       });
 
       const drumMultiHitCount =
@@ -1348,7 +1348,7 @@ export function styleSequencerFeature() {
         // Bottom-first send order means the top-most visible track is sent last (= hoogste prioriteit).
         playList.sort((a, b) => b.trackOrder - a.trackOrder);
       }
-      playList.forEach(({ track, trackOrder, playTime, accentData, velNorm }) => {
+      playList.forEach(({ track, trackOrder, playTime, accentData, userVelocity }) => {
         const noteOverride = getTrackStepNote(track, stepIndex);
         const drumMultiMidiPitch = stepUsesDrumMultiMidiPitch();
         const previewStaggerSec =
@@ -1360,12 +1360,12 @@ export function styleSequencerFeature() {
           track,
           playTime,
           accentData,
-          velNorm,
+          userVelocity,
           noteOverride,
           drumMultiMidiPitch,
           previewStaggerSec
         );
-        sendMidiNote(track, playTime, accentData, velNorm, noteOverride, trackOrder);
+        sendMidiNote(track, playTime, accentData, userVelocity, noteOverride, trackOrder);
       });
 
       if (state.midiEnabled && state.midiClockEnabled) {
@@ -1396,11 +1396,24 @@ export function styleSequencerFeature() {
       };
     }
 
+    function velocityToNormalized(userVelocity) {
+      const normalized = clamp(Number(userVelocity) || 0, 0, 127) / 127;
+      if (normalized <= 0) return 0;
+      // Sterkere curve onderin: 1..20 blijft echt zacht, bovenin nog steeds vol.
+      return Math.pow(normalized, 2.6);
+    }
+
+    function velocityToMidi(userVelocity) {
+      const normalized = velocityToNormalized(userVelocity);
+      if (normalized <= 0) return 0;
+      return clamp(Math.round(normalized * 127), 1, 127);
+    }
+
     function playTrack(
       track,
       time,
       accentData = getAccentData(track.accent, 0, 60 / state.bpm / 4),
-      velNorm = 1,
+      userVelocity = 100,
       noteOverride = track.midiNote,
       useMidiPitchForNote = false,
       timeShiftSec = 0
@@ -1420,8 +1433,9 @@ export function styleSequencerFeature() {
         useMidiPitchForNote || (Number.isFinite(overrideN) && overrideN !== baseMidi);
       const freq =
         useMidiFreq && Number.isFinite(overrideN) ? midiToFreq(overrideN) : track.freq;
+      const gainFromVelocity = velocityToNormalized(userVelocity);
       osc.frequency.setValueAtTime(freq, t);
-      gain.gain.setValueAtTime(accentData.gain * velNorm, t);
+      gain.gain.setValueAtTime(accentData.gain * gainFromVelocity, t);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + accentData.gate);
 
       if (track.name.toLowerCase().includes("hat")) {
@@ -1498,7 +1512,7 @@ export function styleSequencerFeature() {
       track,
       whenTime = audioCtx.currentTime,
       accentData = getAccentData(track.accent, 0, 60 / state.bpm / 4),
-      velNorm = 1,
+      userVelocity = 100,
       noteOverride = track.midiNote,
       trackOrder = 0
     ) {
@@ -1510,7 +1524,8 @@ export function styleSequencerFeature() {
       const ch = chosenChannel - 1;
       const on = 0x90 + ch;
       const off = 0x80 + ch;
-      const velocity = clamp(Math.round(accentData.velocity * velNorm), 1, 127);
+      // Velocity volgt direct de ingevoerde waarde (0..127), zodat de cijfers voorspelbaar zijn.
+      const velocity = clamp(Math.round(userVelocity), 1, 127);
       const baseMs = performance.now() + Math.max(0, (whenTime - audioCtx.currentTime) * 1000);
       const useDrumMultiPitchCC = state.volca === "drum" && state.drumMultiMode;
       let gateMs = Math.round(55 + accentData.normalized * 45);
@@ -1519,6 +1534,8 @@ export function styleSequencerFeature() {
       const overrideN = Number(noteOverride);
       const pitchTarget = Number.isFinite(overrideN) ? clamp(overrideN, 0, 127) : triggerMidi;
       const note = useDrumMultiPitchCC ? triggerMidi : pitchTarget;
+      const velocity = velocityToMidi(userVelocity);
+      if (velocity <= 0) return;
       const chSlot = clamp(chosenChannel - 1, 0, 15);
       const trackSpreadSlot = Math.min(Math.max(0, state.tracks.length - 1 - trackOrder), 8);
       const ccSpreadSlot = useDrumMultiPitchCC ? trackSpreadSlot : Math.min(chSlot, 8);
@@ -1544,7 +1561,7 @@ export function styleSequencerFeature() {
 
       if (accentData.retrigger) {
         const retriggerAt = baseMs + accentData.retriggerDelayMs;
-        const rv = clamp(Math.round(accentData.retriggerVelocity * velNorm), 1, 127);
+        const rv = clamp(Math.round(Math.max(1, velocity * 0.72)), 1, 127);
         if (useDrumMultiPitchCC) {
           let rNoteMs = retriggerAt;
           let rCcMs = rNoteMs - DRUM_MULTI_CC_LEAD_MS - ccSpreadSlot * DRUM_MULTI_CC_STAGGER_MS;
