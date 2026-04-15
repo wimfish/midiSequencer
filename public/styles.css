@@ -315,6 +315,18 @@ select option { color: #111; background: #f1ece4; }
   width: 64px;
 }
 .drum-roll-grid { display: grid; gap: 4px; }
+.drum-roll-steps-head {
+  display: grid;
+  grid-template-columns: 44px repeat(var(--grid-cols, 16), minmax(14px, 1fr));
+  gap: 4px;
+  align-items: center;
+}
+.drum-roll-step-num {
+  font-size: .62rem;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1;
+}
 .drum-roll-row {
   display: grid;
   grid-template-columns: 44px repeat(var(--grid-cols, 16), minmax(14px, 1fr));
