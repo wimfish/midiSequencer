@@ -31,6 +31,14 @@ const DRUM_MULTI_CC_STAGGER_MS = 6;
 const DRUM_MULTI_NOTE_STAGGER_MS = 5;
 /** Langere gate → Note-Off minder gelijk met andere kanalen (Volca negeert lengte vaak toch). */
 const DRUM_MULTI_NOTE_GATE_MIN_MS = 52;
+const VOLUME_LEVELS = [
+  { step: 1, label: "heel zacht", velocity: 88 },
+  { step: 2, label: "zacht", velocity: 96 },
+  { step: 3, label: "half volume", velocity: 104 },
+  { step: 4, label: "normaal", velocity: 112 },
+  { step: 5, label: "harder", velocity: 122 }
+];
+const DEFAULT_STEP_VELOCITY = VOLUME_LEVELS[2].velocity;
 
 export function styleSequencerFeature() {
   return { mount };
@@ -62,6 +70,9 @@ export function styleSequencerFeature() {
       midiClockEnabled: true,
       drumMultiMode: false,
       drumMultiSendNoteOff: true,
+      drumCcLeadMs: DRUM_MULTI_CC_LEAD_MS,
+      drumCcStaggerMs: DRUM_MULTI_CC_STAGGER_MS,
+      drumNoteStaggerMs: DRUM_MULTI_NOTE_STAGGER_MS,
       lastClockTick: 0,
       tracks: [],
       trackTemplates: [],
@@ -110,6 +121,9 @@ export function styleSequencerFeature() {
         "drumMultiToggle",
         "drumMultiNoteOffWrap",
         "drumMultiNoteOffToggle",
+        "drumBufferMsInput",
+        "drumCcStaggerMsInput",
+        "drumNoteStaggerMsInput",
         "midiHint",
         "settingsToggleBtn",
         "controlStack",
@@ -127,6 +141,9 @@ export function styleSequencerFeature() {
 
     function init() {
       bindEls();
+      els.drumBufferMsInput.value = String(state.drumCcLeadMs);
+      els.drumCcStaggerMsInput.value = String(state.drumCcStaggerMs);
+      els.drumNoteStaggerMsInput.value = String(state.drumNoteStaggerMs);
       populateStyles();
       populateChannels();
       bindEvents();
@@ -234,7 +251,8 @@ export function styleSequencerFeature() {
       els.velocityConfirmBtn.addEventListener("click", () => {
         const trackIndex = Number(els.velocityModal.dataset.trackIndex);
         const stepIndex = Number(els.velocityModal.dataset.stepIndex);
-        const next = clamp(Number(els.velocityInput.value), 0, 127);
+        const nextLevel = clamp(Number(els.velocityInput.value) || 3, 1, 5);
+        const next = velocityFromVolumeLevel(nextLevel);
         const track = state.tracks[trackIndex];
         if (!track) return closeVelocityDialog();
         const cell = normalizeCell(track.steps[stepIndex]);
@@ -242,7 +260,7 @@ export function styleSequencerFeature() {
         track.steps[stepIndex] = cell;
         closeVelocityDialog();
         render();
-        setStatus(`${track.name} step ${stepIndex + 1} velocity ${next}`);
+        setStatus(`${track.name} step ${stepIndex + 1} volume ${nextLevel} (${next})`);
       });
       els.velocityCancelBtn.addEventListener("click", closeVelocityDialog);
       els.velocityModal.addEventListener("click", (e) => {
@@ -268,6 +286,21 @@ export function styleSequencerFeature() {
       els.drumMultiNoteOffToggle.addEventListener("change", () => {
         state.drumMultiSendNoteOff = !!els.drumMultiNoteOffToggle.checked;
         setStatus(state.drumMultiSendNoteOff ? "Drum Multi Note-Off aan" : "Drum Multi Note-Off uit (test)");
+      });
+      els.drumBufferMsInput.addEventListener("input", () => {
+        state.drumCcLeadMs = clamp(Number(els.drumBufferMsInput.value) || DRUM_MULTI_CC_LEAD_MS, 0, 40);
+        els.drumBufferMsInput.value = String(state.drumCcLeadMs);
+        setStatus(`Drum buffer vooraf ${state.drumCcLeadMs} ms`);
+      });
+      els.drumCcStaggerMsInput.addEventListener("input", () => {
+        state.drumCcStaggerMs = clamp(Number(els.drumCcStaggerMsInput.value) || DRUM_MULTI_CC_STAGGER_MS, 0, 20);
+        els.drumCcStaggerMsInput.value = String(state.drumCcStaggerMs);
+        setStatus(`Drum CC stagger ${state.drumCcStaggerMs} ms`);
+      });
+      els.drumNoteStaggerMsInput.addEventListener("input", () => {
+        state.drumNoteStaggerMs = clamp(Number(els.drumNoteStaggerMsInput.value) || DRUM_MULTI_NOTE_STAGGER_MS, 0, 20);
+        els.drumNoteStaggerMsInput.value = String(state.drumNoteStaggerMs);
+        setStatus(`Drum note stagger ${state.drumNoteStaggerMs} ms`);
       });
       els.settingsToggleBtn.addEventListener("click", toggleSettingsPanel);
 
@@ -329,7 +362,7 @@ export function styleSequencerFeature() {
         midiChannel: clamp((template.index ?? index) + 1, 1, 16),
         settingsOpen: false,
         cursorStep: 0,
-        steps: Array.from({ length: state.length }, () => ({ on: false, velocity: 100 })),
+        steps: Array.from({ length: state.length }, () => ({ on: false, velocity: DEFAULT_STEP_VELOCITY })),
         rollNotes: Array.from({ length: state.length }, () => null),
         rollInputOctave: midiToDrumRollOctave(template.midiNote)
       };
@@ -441,13 +474,12 @@ export function styleSequencerFeature() {
       const track = state.tracks[trackIndex];
       if (!track) return;
       const cell = normalizeCell(track.steps[stepIndex]);
-      els.velocityInput.value = String(clamp(Number(cell.velocity) || 0, 0, 127));
+      els.velocityInput.value = String(volumeLevelFromVelocity(cell.velocity));
       els.velocityModal.dataset.trackIndex = String(trackIndex);
       els.velocityModal.dataset.stepIndex = String(stepIndex);
       els.velocityModal.classList.remove("hidden");
       els.velocityModal.setAttribute("aria-hidden", "false");
       els.velocityInput.focus();
-      els.velocityInput.select();
     }
 
     function closeVelocityDialog() {
@@ -477,7 +509,7 @@ export function styleSequencerFeature() {
           const prev = track.steps[i];
           if (prev && typeof prev === "object") return { on: !!prev.on, velocity: clamp(Number(prev.velocity) || 100, 0, 127) };
           // Back-compat from boolean saves.
-          return { on: !!prev, velocity: 100 };
+          return { on: !!prev, velocity: DEFAULT_STEP_VELOCITY };
         });
         track.rollNotes = Array.from({ length: state.length }, (_, i) =>
           parseRollSlot(track.rollNotes?.[i])
@@ -489,7 +521,7 @@ export function styleSequencerFeature() {
 
     function clearPattern() {
       state.tracks.forEach((track) => {
-        track.steps = Array.from({ length: state.length }, () => ({ on: false, velocity: 100 }));
+        track.steps = Array.from({ length: state.length }, () => ({ on: false, velocity: DEFAULT_STEP_VELOCITY }));
         track.rollNotes = Array.from({ length: state.length }, () => null);
       });
       resetDrumMultiCc28Memory();
@@ -504,7 +536,7 @@ export function styleSequencerFeature() {
       els.bpmInput.value = cfg.bpm;
       resetDrumMultiCc28Memory();
       state.tracks.forEach((track) => {
-        track.steps = Array.from({ length: state.length }, () => ({ on: false, velocity: 100 }));
+        track.steps = Array.from({ length: state.length }, () => ({ on: false, velocity: DEFAULT_STEP_VELOCITY }));
         track.rollNotes = Array.from({ length: state.length }, () => null);
         fillTrackFromStylePreset(track, cfg, state.variation, state.length);
       });
@@ -700,6 +732,7 @@ export function styleSequencerFeature() {
           const cell = normalizeCell(track.steps[stepIndex]);
           step.className = `step${cell.on ? " on" : ""}${state.currentStep === stepIndex && state.isPlaying ? " current" : ""}${isCursor ? " selected" : ""}`;
           const vel = clamp(Number(cell.velocity) || 0, 0, 127);
+          const volumeLevel = volumeLevelFromVelocity(vel);
           step.style.setProperty("--vel", String(cell.on ? vel / 127 : 0));
           step.innerHTML = `<span class="step-num">${stepIndex + 1}</span>`;
           step.dataset.trackIndex = trackIndex;
@@ -725,8 +758,8 @@ export function styleSequencerFeature() {
           const velBtn = document.createElement("button");
           velBtn.type = "button";
           velBtn.className = "step-vel-btn";
-          velBtn.textContent = String(vel);
-          velBtn.title = "Velocity (0-127)";
+          velBtn.textContent = String(volumeLevel);
+          velBtn.title = `Volume stand ${volumeLevel} (${vel})`;
           velBtn.addEventListener("click", (ev) => {
             ev.preventDefault();
             ev.stopPropagation();
@@ -1117,7 +1150,26 @@ export function styleSequencerFeature() {
       if (cell && typeof cell === "object") {
         return { on: !!cell.on, velocity: clamp(Number(cell.velocity) || 0, 0, 127) };
       }
-      return { on: !!cell, velocity: 100 };
+      return { on: !!cell, velocity: DEFAULT_STEP_VELOCITY };
+    }
+
+    function velocityFromVolumeLevel(level) {
+      const safeLevel = clamp(Number(level) || 3, 1, 5);
+      return VOLUME_LEVELS[safeLevel - 1].velocity;
+    }
+
+    function volumeLevelFromVelocity(velocity) {
+      const target = clamp(Number(velocity) || 0, 0, 127);
+      let nearest = VOLUME_LEVELS[0];
+      let nearestDiff = Math.abs(target - nearest.velocity);
+      for (const candidate of VOLUME_LEVELS) {
+        const diff = Math.abs(target - candidate.velocity);
+        if (diff < nearestDiff) {
+          nearest = candidate;
+          nearestDiff = diff;
+        }
+      }
+      return nearest.step;
     }
 
     function onKeydown(e) {
@@ -1353,7 +1405,7 @@ export function styleSequencerFeature() {
         const drumMultiMidiPitch = stepUsesDrumMultiMidiPitch();
         const previewStaggerSec =
           state.volca === "drum" && state.drumMultiMode
-            ? (Math.min(state.tracks.length - 1 - trackOrder, 8) * DRUM_MULTI_NOTE_STAGGER_MS) /
+            ? (Math.min(state.tracks.length - 1 - trackOrder, 8) * state.drumNoteStaggerMs) /
               1000
             : 0;
         playTrack(
@@ -1403,10 +1455,27 @@ export function styleSequencerFeature() {
       return Math.pow(normalized, 2.6);
     }
 
+    function velocityToPreviewGain(userVelocity) {
+      const level = volumeLevelFromVelocity(userVelocity);
+      // Expliciete 5-standen voor browser preview zodat verschil duidelijk hoorbaar is.
+      const gainByLevel = [0.07, 0.16, 0.34, 0.68, 0.95];
+      return gainByLevel[level - 1] || gainByLevel[2];
+    }
+
     function velocityToMidi(userVelocity) {
       const normalized = velocityToNormalized(userVelocity);
       if (normalized <= 0) return 0;
       return clamp(Math.round(normalized * 127), 1, 127);
+    }
+
+    function velocityToDrumPartLevelCc(userVelocity) {
+      const level = volumeLevelFromVelocity(userVelocity);
+      // Door jou gevraagde Volca-standen (ongeveer op 0..255 schaal):
+      // 1: 30, 2: 90, 3: 160, 4: 200, 5: 248.
+      // MIDI CC is 0..127, dus omgerekend naar:
+      // 15, 45, 80, 100, 124.
+      const ccByLevel = [15, 45, 80, 100, 124];
+      return ccByLevel[level - 1] || ccByLevel[2];
     }
 
     function playTrack(
@@ -1433,7 +1502,7 @@ export function styleSequencerFeature() {
         useMidiPitchForNote || (Number.isFinite(overrideN) && overrideN !== baseMidi);
       const freq =
         useMidiFreq && Number.isFinite(overrideN) ? midiToFreq(overrideN) : track.freq;
-      const gainFromVelocity = velocityToNormalized(userVelocity);
+      const gainFromVelocity = velocityToPreviewGain(userVelocity);
       osc.frequency.setValueAtTime(freq, t);
       gain.gain.setValueAtTime(accentData.gain * gainFromVelocity, t);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + accentData.gate);
@@ -1496,7 +1565,11 @@ export function styleSequencerFeature() {
 
     /** Wis per-track cache zodat na play/pattern-load de Volca opnieuw CC krijgt waar nodig. */
     function resetDrumMultiCc28Memory() {
-      for (const track of state.tracks) delete track._lastDrumMultiCc28Sent;
+      for (const track of state.tracks) {
+        delete track._lastDrumMultiCc28Sent;
+        delete track._lastDrumPartLevelSent;
+      }
+      state._lastDrumPartLevelByChannel = {};
     }
 
     /** Active filtering: alleen CC 28 sturen als pitch-CC t.o.v. vorige hit van deze track verandert. */
@@ -1506,6 +1579,27 @@ export function styleSequencerFeature() {
       track._lastDrumMultiCc28Sent = v;
       const cc = 0xb0 + ch;
       output.send([cc, 28, v], whenMs);
+    }
+
+    /**
+     * Active filtering voor CC19 (Part Level):
+     * - Drum Multi: per track shadow-state
+     * - Single kanaal: per MIDI-kanaal shadow-state
+     */
+    function sendDrumPartLevelCC(output, ch, track, levelValue, whenMs, useDrumMultiPitchCC) {
+      const cc = 0xb0 + ch;
+      if (useDrumMultiPitchCC) {
+        if (track._lastDrumPartLevelSent === levelValue) return;
+        track._lastDrumPartLevelSent = levelValue;
+        output.send([cc, 19, levelValue], whenMs);
+        return;
+      }
+
+      const byChannel = state._lastDrumPartLevelByChannel || {};
+      if (byChannel[ch] === levelValue) return;
+      byChannel[ch] = levelValue;
+      state._lastDrumPartLevelByChannel = byChannel;
+      output.send([cc, 19, levelValue], whenMs);
     }
 
     function sendMidiNote(
@@ -1524,37 +1618,43 @@ export function styleSequencerFeature() {
       const ch = chosenChannel - 1;
       const on = 0x90 + ch;
       const off = 0x80 + ch;
-      // Velocity volgt direct de ingevoerde waarde (0..127), zodat de cijfers voorspelbaar zijn.
-      const velocity = clamp(Math.round(userVelocity), 1, 127);
       const baseMs = performance.now() + Math.max(0, (whenTime - audioCtx.currentTime) * 1000);
       const useDrumMultiPitchCC = state.volca === "drum" && state.drumMultiMode;
+      const isVolcaDrum = state.volca === "drum";
       let gateMs = Math.round(55 + accentData.normalized * 45);
       if (useDrumMultiPitchCC) gateMs = Math.max(gateMs, DRUM_MULTI_NOTE_GATE_MIN_MS);
       const triggerMidi = clamp(Number(track.midiNote) || 60, 0, 127);
       const overrideN = Number(noteOverride);
       const pitchTarget = Number.isFinite(overrideN) ? clamp(overrideN, 0, 127) : triggerMidi;
       const note = useDrumMultiPitchCC ? triggerMidi : pitchTarget;
-      const velocity = velocityToMidi(userVelocity);
-      if (velocity <= 0) return;
+      const velocity = isVolcaDrum ? 127 : velocityToMidi(userVelocity);
+      const drumPartLevel = isVolcaDrum ? velocityToDrumPartLevelCc(userVelocity) : 0;
+      if (isVolcaDrum && drumPartLevel <= 0) return;
+      if (!isVolcaDrum && velocity <= 0) return;
       const chSlot = clamp(chosenChannel - 1, 0, 15);
       const trackSpreadSlot = Math.min(Math.max(0, state.tracks.length - 1 - trackOrder), 8);
       const ccSpreadSlot = useDrumMultiPitchCC ? trackSpreadSlot : Math.min(chSlot, 8);
-      const noteStaggerMs = ccSpreadSlot * DRUM_MULTI_NOTE_STAGGER_MS;
+      const noteStaggerMs = ccSpreadSlot * state.drumNoteStaggerMs;
 
       if (useDrumMultiPitchCC) {
         let noteMs = baseMs;
-        let ccMs = noteMs - DRUM_MULTI_CC_LEAD_MS - ccSpreadSlot * DRUM_MULTI_CC_STAGGER_MS;
+        let ccMs = noteMs - state.drumCcLeadMs - ccSpreadSlot * state.drumCcStaggerMs;
         const now = performance.now();
-        const minLead = DRUM_MULTI_CC_LEAD_MS + 3;
+        const minLead = state.drumCcLeadMs + 3;
         if (ccMs < now) {
           ccMs = now;
           noteMs = Math.max(noteMs, ccMs + minLead);
         }
         const noteOnMs = noteMs + noteStaggerMs;
+        sendDrumPartLevelCC(output, ch, track, drumPartLevel, ccMs, useDrumMultiPitchCC);
         sendDrumMultiPitchCC(output, ch, track, pitchTarget, ccMs);
         output.send([on, note, velocity], noteOnMs);
         if (state.drumMultiSendNoteOff) output.send([off, note, 0], noteOnMs + gateMs);
       } else {
+        if (isVolcaDrum) {
+          const ccMs = Math.max(performance.now(), baseMs - 8);
+          sendDrumPartLevelCC(output, ch, track, drumPartLevel, ccMs, useDrumMultiPitchCC);
+        }
         output.send([on, note, velocity], baseMs);
         output.send([off, note, 0], baseMs + gateMs);
       }
@@ -1564,9 +1664,9 @@ export function styleSequencerFeature() {
         const rv = clamp(Math.round(Math.max(1, velocity * 0.72)), 1, 127);
         if (useDrumMultiPitchCC) {
           let rNoteMs = retriggerAt;
-          let rCcMs = rNoteMs - DRUM_MULTI_CC_LEAD_MS - ccSpreadSlot * DRUM_MULTI_CC_STAGGER_MS;
+          let rCcMs = rNoteMs - state.drumCcLeadMs - ccSpreadSlot * state.drumCcStaggerMs;
           const rNow = performance.now();
-          const rMinLead = DRUM_MULTI_CC_LEAD_MS + 3;
+          const rMinLead = state.drumCcLeadMs + 3;
           if (rCcMs < rNow) {
             rCcMs = rNow;
             rNoteMs = Math.max(rNoteMs, rCcMs + rMinLead);
@@ -1787,6 +1887,18 @@ function template() {
               </span>
             </label>
           </div>
+          <div class="field small">
+            <label for="drumBufferMsInput">Drum buffer vooraf (ms)</label>
+            <input id="drumBufferMsInput" type="number" min="0" max="40" step="1" value="14" />
+          </div>
+          <div class="field small">
+            <label for="drumCcStaggerMsInput">Drum CC stagger (ms)</label>
+            <input id="drumCcStaggerMsInput" type="number" min="0" max="20" step="1" value="6" />
+          </div>
+          <div class="field small">
+            <label for="drumNoteStaggerMsInput">Drum note stagger (ms)</label>
+            <input id="drumNoteStaggerMsInput" type="number" min="0" max="20" step="1" value="5" />
+          </div>
 
           <div class="midi-hint" id="midiHint">Advies Volca Beats: kanaal 1</div>
         </section>
@@ -1857,8 +1969,14 @@ function template() {
     <div id="velocityModal" class="selector-modal hidden" aria-hidden="true" data-track-index="" data-step-index="">
       <div class="card">
         <div class="field">
-          <label for="velocityInput">Velocity (0–127)</label>
-          <input id="velocityInput" type="number" min="0" max="127" step="1" value="100" />
+          <label for="velocityInput">Volume stand (1–5)</label>
+          <select id="velocityInput">
+            <option value="1">1 - heel zacht</option>
+            <option value="2">2 - zacht</option>
+            <option value="3" selected>3 - half volume</option>
+            <option value="4">4 - normaal</option>
+            <option value="5">5 - harder</option>
+          </select>
         </div>
         <div class="buttons-wrap">
           <button id="velocityConfirmBtn">OK</button>

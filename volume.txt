@@ -1,0 +1,153 @@
+Hier is waarom je Velocity beter kunt vermijden en wat je in plaats daarvan moet doen in je Node.js code:
+
+1. Velocity is "gekoppeld" aan de sound
+Bij de Volca Drum bepaalt Velocity niet alleen hoe hard het geluid is, maar vaak ook hoe de Physical Modeling engine reageert.
+
+Bij een lage Velocity kan het filter of de resonantie van de "drum-head" anders reageren.
+
+Dit zorgt ervoor dat je geluid niet alleen zachter wordt, maar ook "doffer" of "slapper". Als je alleen het volume wilt verlagen zonder de klank te veranderen, verpest Velocity je zorgvuldig ontworpen sound.
+
+2. Het "80-127" probleem (Dead Zone)
+Net als bij de CC-levels heeft de Volca Drum een enorme dead zone in zijn Velocity-respons. Als je een noot stuurt met Velocity 40, hoor je vaak bijna niets. Pas boven de 90 begint hij echt "wakker" te worden. Hierdoor is het bijna onmogelijk om een mooie, vloeiende volumewisseling te maken via Velocity.
+
+3. De betere strategie: De "Vaste Velocity" methode
+In de professionele MIDI-wereld (vooral bij lastige synths zoals de Drum) gebruiken we deze workflow:
+
+Zet Velocity vast: Stuur vanuit Node.js elke noot met een vaste Velocity van 127 (of 100 als je wat 'headroom' wilt).
+
+Gebruik CC 19 (Part Level): Gebruik dit CC-nummer om het volume te regelen.
+
+Waarom? CC 19 regelt het volume van de oscillator nadat het geluid is opgewekt. Hierdoor blijft de klank (de punch en de textuur) exact hetzelfde, maar wordt het signaal simpelweg harder of zachter gezet.
+
+Hoe vertaal je dit naar je code?
+Als je in je sequencer een schuifregelaar hebt voor volume, moet die dus niet de velocity van je noteOn bericht aanpassen, maar een apart controlChange bericht sturen:
+
+JavaScript
+// NIET DOEN:
+// midiOutput.sendMessage([0x90 + channel, note, velocity]); // velocity variëren
+
+// WEL DOEN:
+// 1. Stuur de noot altijd voluit
+midiOutput.sendMessage([0x90 + channel, note, 127]); 
+
+// 2. Regel volume via CC 19 (waarbij 0-127 gemapped is naar 80-127 voor effectiviteit)
+let targetVolume = 100; // Jouw gewenste volume
+let safeVolume = 80 + (targetVolume / 127) * 47; 
+midiOutput.sendMessage([0xB0 + channel, 19, safeVolume]);
+Waarom is dit "slimme" MIDI?
+Door Velocity op 127 te laten staan, geef je de interne chip van de Volca Drum een constante waarde om mee te rekenen. Dat vindt die zwakke processor veel fijner dan constant wisselende Velocity-waarden die hij moet omrekenen naar complexe Physical Modeling-algoritmes.
+
+Kortom: Velocity is bij de Volca Drum meer een "klank-shaper" dan een volumeknop. Voor strakke controle in je sequencer is CC 19 je beste vriend.
+
+Om dit echt "strak" te krijgen in je Node.js sequencer, moet je stoppen met denken in "volume" en beginnen te denken in "pre-emptive state management". Omdat de Volca Drum traag is, moet je hem telkens een fractie van een seconde vóór de stap al vertellen wat de bedoeling is.
+
+Hier is de slimste aanpak om per stap, per kanaal de controle te grijpen:
+
+1. Gebruik een "Shadow State" in Node.js
+Bouw in je code een object dat bijhoudt wat de laatste waarde was die je naar de Volca hebt gestuurd. De Volca is "dom" en onthoudt niets; jij moet de bron van de waarheid zijn.
+
+JavaScript
+let channelState = {
+    1: { lastLevel: -1, lastDecay: -1 },
+    2: { lastLevel: -1, lastDecay: -1 },
+    // etc...
+};
+2. De "Early Bird" Strategie (De 2ms regel)
+Als je sequencer op 120 BPM draait, stuur je de CC-data voor volume niet exact op de beat, maar 2 tot 5 milliseconden eerder.
+
+Waarom: De MIDI-buffer van de Volca heeft tijd nodig om de CC-waarde te verwerken voordat de Note-On de audio-engine triggert.
+
+Resultaat: De noot klinkt direct op het juiste volume zonder die gevreesde "hapering" of dat hij de eerste milliseconden nog op het oude volume staat.
+
+3. "Differential Updates" (Bespaar bandbreedte)
+Stuur alleen een CC-bericht als de waarde van de huidige stap anders is dan de vorige stap.
+
+Als stap 1 en stap 2 beide volume 100 hebben, stuur dan bij stap 2 geen CC-bericht.
+
+Dit houdt de MIDI-lijn schoon en voorkomt dat de processor van de Volca Drum "stikt" in dubbele data.
+
+4. De "Velocity + Level" Combo-Formule
+Voor de meest natuurlijke volumeregeling per stap (zonder dat de klank te dof wordt), gebruik je een combinatie:
+
+Houd Velocity relatief hoog (bijv. altijd tussen 100 en 127) voor de "punch".
+
+Gebruik CC 19 (Level) voor de fijnregeling van het volume.
+
+Slimme code-logica per step:
+
+JavaScript
+function playStep(part, volume0to127) {
+    let midiChan = getMidiChannel(part); // Kanaal 1-6 of 10
+
+    // Alleen sturen als de waarde is veranderd t.o.v. de vorige stap
+    if (volume0to127 !== channelState[part].lastLevel) {
+        // Stuur CC 19 vlak voor de noot
+        midiOutput.sendMessage([0xB0 + midiChan, 19, volume0to127]);
+        channelState[part].lastLevel = volume0to127;
+    }
+
+    // De eigenlijke trigger
+    midiOutput.sendMessage([0x90 + midiChan, 36, 127]); 
+}
+5. Het "Ghost Note" probleem oplossen
+Wil je een "Ghost Note" (een heel zacht tikje tussen de harde klappen door)?
+Bij de Volca Drum werkt dit het best door niet alleen het Volume (CC 19) omlaag te gooien, maar ook de Decay (CC 22). Een zacht tikje dat lang doorklinkt klinkt onnatuurlijk; een kort, zacht tikje klinkt als een echte drummer.
+
+De Formule:
+
+Accent: Level 120, Decay 80
+
+Normal: Level 100, Decay 60
+
+Ghost: Level 60, Decay 20
+
+Samenvatting van de "Pro" workflow:
+Kwantiseer je CC's: Stuur ze altijd een fractie vóór de noot.
+
+Filter dubbele data: Voorkom MIDI-overload.
+
+Koppel Volume aan Decay: Voor een realistisch "per step" gevoel.
+
+Als je dit in je Node.js sequencer bouwt, zul je merken dat je beats opeens veel dynamischer en professioneler klinken, alsof de Volca Drum veel duurder is dan hij eigenlijk was.
+
+Ga je proberen zo'n "Shadow State" in te voeren in je code om alleen veranderingen te sturen?
+
+---
+
+NIEUW: Eenvoudige 5-standen volume-indeling (aanbevolen)
+
+Als je liever geen 0-127 slider gebruikt, kun je werken met 5 vaste standen.
+Dat geeft sneller muzikaal bruikbare resultaten en voorkomt gepriegel.
+
+Gebruik voor Volca Drum bij voorkeur CC 19 (Part Level), met vaste Velocity (127).
+
+Standen:
+1 - heel zacht   -> CC 19 = 88
+2 - zacht        -> CC 19 = 96
+3 - half volume  -> CC 19 = 104
+4 - normaal      -> CC 19 = 112
+5 - harder       -> CC 19 = 122
+
+Waarom deze waarden:
+- Ze zitten in het bruikbare gebied van de Volca Drum (ongeveer 80-127).
+- De stapjes zijn hoorbaar, maar niet extreem.
+- "Normaal" zit in het midden met voldoende headroom naar "harder".
+
+Voorbeeld in Node.js:
+
+const VOLUME_STEPS = {
+  1: 88,   // heel zacht
+  2: 96,   // zacht
+  3: 104,  // half volume
+  4: 112,  // normaal
+  5: 122   // harder
+};
+
+function applyVolumeStep(midiOutput, channel, step = 4) {
+  const safeStep = Math.min(5, Math.max(1, Number(step) || 4));
+  const cc19Value = VOLUME_STEPS[safeStep];
+  midiOutput.sendMessage([0xB0 + channel, 19, cc19Value]);
+}
+
+Tip:
+Als het verschil tussen 4 en 5 te klein is in jouw setup, zet stand 5 op 127.
