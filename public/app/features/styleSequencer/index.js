@@ -3,15 +3,23 @@ import { volcaProfiles } from "./data/volcaProfiles.js";
 import { clamp } from "../../shared/utils/math.js";
 import { qs } from "../../shared/utils/dom.js";
 import { saveJson, loadJson } from "../../shared/storage/jsonStorage.js";
-import { requestMidiAccess, listMidiOutputs } from "../../shared/midi/access.js";
 import {
+  requestMidiAccess,
+  listMidiOutputs,
+  resolveMidiOutput,
+  sendClockToOutput,
+  sendTransportToOutput,
   getTransportSnapshot,
   getTransportStep,
   setTransportBpm,
   startTransport,
   stopTransport,
-  subscribeTransport
-} from "../../shared/midi/transport.js";
+  subscribeTransport,
+  getMidiSessionDevice,
+  persistMidiSessionFromState,
+  evaluateMidiRoutingConflict,
+  MIDI_DEVICE
+} from "../../shared/midi/midiLayer.js";
 
 const STORAGE_KEY = "volca-sequencer-save";
 const VOLCA_SELECTION_KEY = "volca-selected";
@@ -63,6 +71,7 @@ export function styleSequencerFeature() {
     let transportUnsubscribe = null;
     let lastProcessedTransportStep = -1;
     let lastTransportOutputId = "";
+    let styleUsedDraftOnMount = false;
 
     const state = {
       style: "Drum & Bass",
@@ -83,6 +92,7 @@ export function styleSequencerFeature() {
       midiEnabled: false,
       midiOutputActive: true,
       midiClockEnabled: true,
+      midiTransportCommands: false,
       drumMultiMode: false,
       drumMultiSendNoteOff: true,
       drumCcLeadMs: DRUM_MULTI_CC_LEAD_MS,
@@ -139,6 +149,7 @@ export function styleSequencerFeature() {
         "midiOutputSelect",
         "midiChannelSelect",
         "clockEnable",
+        "midiTransportCommandsToggle",
         "drumMultiWrap",
         "drumMultiToggle",
         "drumMultiNoteOffWrap",
@@ -193,6 +204,7 @@ export function styleSequencerFeature() {
 
       const shouldUseDraft =
         !!styleSequencerDraft && (!savedVolca || savedVolca === styleSequencerDraft.volca);
+      styleUsedDraftOnMount = shouldUseDraft;
       if (shouldUseDraft) {
         restoreState(styleSequencerDraft);
       } else {
@@ -309,6 +321,7 @@ export function styleSequencerFeature() {
         }
         updateMidiActiveModeState();
         setStatus(state.midiEnabled ? "MIDI aan" : "MIDI uit");
+        persistMidiSessionFromState(MIDI_DEVICE.STYLE, state);
       });
       els.styleMidiOutputActiveToggle.addEventListener("change", () => {
         state.midiOutputActive = !!els.styleMidiOutputActiveToggle.checked;
@@ -321,6 +334,7 @@ export function styleSequencerFeature() {
           sendMidiTransport("continue");
         }
         setStatus(state.midiEnabled ? "Output actief" : "Output actief (MIDI staat uit)");
+        persistMidiSessionFromState(MIDI_DEVICE.STYLE, state);
       });
       els.midiOutputSelect.addEventListener("change", () => {
         const previousOutputId = state.midiOutputId;
@@ -333,11 +347,22 @@ export function styleSequencerFeature() {
           sendMidiTransport("continue");
         }
         setStatus(`MIDI output: ${els.midiOutputSelect.selectedOptions[0]?.textContent || "geen"}`);
+        persistMidiSessionFromState(MIDI_DEVICE.STYLE, state);
       });
       els.midiChannelSelect.addEventListener("change", () => setStatus(`Kanaal ${els.midiChannelSelect.value}`));
       els.midiChannelSelect.addEventListener("change", updateMidiActiveModeState);
       els.clockEnable.addEventListener("change", () => {
         state.midiClockEnabled = els.clockEnable.checked;
+        persistMidiSessionFromState(MIDI_DEVICE.STYLE, state);
+      });
+      els.midiTransportCommandsToggle.addEventListener("change", () => {
+        state.midiTransportCommands = !!els.midiTransportCommandsToggle.checked;
+        persistMidiSessionFromState(MIDI_DEVICE.STYLE, state);
+        setStatus(
+          state.midiTransportCommands
+            ? "MIDI Start/Stop naar hardware aan"
+            : "Alleen clock + noten (geen MMC Start/Stop)"
+        );
       });
       els.drumMultiToggle.addEventListener("change", () => {
         state.drumMultiMode = !!els.drumMultiToggle.checked;
@@ -393,6 +418,7 @@ export function styleSequencerFeature() {
       state.midiAccess = res.access;
       refreshMidiOutputs();
       state.midiAccess.onstatechange = refreshMidiOutputs;
+      handleStyleMidiSessionAfterOutputsReady();
     }
 
     function refreshMidiOutputs() {
@@ -409,6 +435,34 @@ export function styleSequencerFeature() {
       state.midiOutputId = els.midiOutputSelect.value;
     }
 
+    function mergeMidiSessionIntoStyleState() {
+      const s = getMidiSessionDevice("style");
+      state.midiEnabled = !!s.midiEnabled;
+      state.midiOutputActive = s.midiOutputActive !== false;
+      state.midiClockEnabled = s.midiClockEnabled !== false;
+      state.midiTransportCommands = !!s.midiTransportCommands;
+      state.midiOutputId = s.midiOutputId || "";
+      els.midiEnable.checked = state.midiEnabled;
+      els.styleMidiOutputActiveToggle.checked = state.midiOutputActive;
+      els.clockEnable.checked = state.midiClockEnabled;
+      els.midiTransportCommandsToggle.checked = state.midiTransportCommands;
+      if (state.midiAccess) {
+        els.midiOutputSelect.value = state.midiOutputId;
+        if (els.midiOutputSelect.value !== state.midiOutputId) {
+          state.midiOutputId = els.midiOutputSelect.value;
+        }
+      }
+      updateMidiActiveModeState();
+    }
+
+    function handleStyleMidiSessionAfterOutputsReady() {
+      if (styleUsedDraftOnMount) {
+        persistMidiSessionFromState(MIDI_DEVICE.STYLE, state);
+      } else {
+        mergeMidiSessionIntoStyleState();
+      }
+    }
+
     function snapshotState() {
       return {
         style: state.style,
@@ -422,6 +476,7 @@ export function styleSequencerFeature() {
         midiEnabled: state.midiEnabled,
         midiOutputActive: state.midiOutputActive,
         midiClockEnabled: state.midiClockEnabled,
+        midiTransportCommands: state.midiTransportCommands,
         drumMultiMode: state.drumMultiMode,
         drumMultiSendNoteOff: state.drumMultiSendNoteOff,
         drumCcLeadMs: state.drumCcLeadMs,
@@ -443,6 +498,7 @@ export function styleSequencerFeature() {
       state.midiEnabled = saved.midiEnabled ?? state.midiEnabled;
       state.midiOutputActive = saved.midiOutputActive ?? state.midiOutputActive;
       state.midiClockEnabled = saved.midiClockEnabled ?? state.midiClockEnabled;
+      state.midiTransportCommands = saved.midiTransportCommands ?? state.midiTransportCommands;
       state.drumMultiMode = !!saved.drumMultiMode;
       state.drumMultiSendNoteOff = saved.drumMultiSendNoteOff ?? state.drumMultiSendNoteOff;
       state.drumCcLeadMs = clamp(Number(saved.drumCcLeadMs) || state.drumCcLeadMs, 0, 40);
@@ -456,6 +512,7 @@ export function styleSequencerFeature() {
       els.midiEnable.checked = !!state.midiEnabled;
       els.styleMidiOutputActiveToggle.checked = !!state.midiOutputActive;
       els.clockEnable.checked = !!state.midiClockEnabled;
+      els.midiTransportCommandsToggle.checked = !!state.midiTransportCommands;
       updateMidiActiveModeState();
       els.drumMultiToggle.checked = !!state.drumMultiMode;
       els.drumMultiNoteOffToggle.checked = !!state.drumMultiSendNoteOff;
@@ -469,6 +526,7 @@ export function styleSequencerFeature() {
       updateDrumMultiUI();
       render();
       setTransportBpm(state.bpm);
+      persistMidiSessionFromState(MIDI_DEVICE.STYLE, state);
     }
 
     function createTrackFromTemplate(template, index) {
@@ -1642,29 +1700,37 @@ export function styleSequencerFeature() {
     }
 
     function getMidiOutput() {
-      if (!state.midiAccess || !state.midiEnabled || !state.midiOutputActive || !state.midiOutputId) return null;
-      return state.midiAccess.outputs.get(state.midiOutputId) || null;
+      return resolveMidiOutput({
+        midiAccess: state.midiAccess,
+        midiEnabled: state.midiEnabled,
+        midiOutputActive: state.midiOutputActive,
+        midiOutputId: state.midiOutputId
+      });
     }
 
     function sendMidiTransport(command, targetOutputId = state.midiOutputId) {
-      const output =
-        state.midiAccess && state.midiEnabled && targetOutputId
-          ? state.midiAccess.outputs.get(targetOutputId) || null
-          : null;
-      if (!output) return;
-      if (command === true || command === "start") output.send([0xfa]);
-      else if (command === false || command === "stop") output.send([0xfc]);
-      else if (command === "continue") output.send([0xfb]);
+      if (!state.midiTransportCommands) return;
+      const ok = sendTransportToOutput({
+        midiAccess: state.midiAccess,
+        midiEnabled: state.midiEnabled,
+        midiOutputActive: true,
+        midiOutputId: targetOutputId,
+        command
+      });
+      if (!ok) return;
       lastTransportOutputId = targetOutputId || "";
     }
 
     function sendMidiClockBurst() {
-      const output = getMidiOutput();
-      if (!output) return;
       const now = performance.now();
       if (now - state.lastClockTick < 15) return;
       state.lastClockTick = now;
-      output.send([0xf8]);
+      sendClockToOutput({
+        midiAccess: state.midiAccess,
+        midiEnabled: state.midiEnabled,
+        midiOutputActive: state.midiOutputActive,
+        midiOutputId: state.midiOutputId
+      });
     }
 
     /**
@@ -1894,7 +1960,9 @@ export function styleSequencerFeature() {
       if (els.midiRouteDebug) {
         const outputLabel = els.midiOutputSelect.selectedOptions[0]?.textContent || "geen output";
         const channelLabel = state.drumMultiMode ? "per-track kanaal" : `ch ${els.midiChannelSelect.value}`;
-        els.midiRouteDebug.textContent = `ROUTE: ${outputLabel} · ${channelLabel}`;
+        const conflict = evaluateMidiRoutingConflict(MIDI_DEVICE.STYLE);
+        const warn = conflict.hasConflict ? ` · ⚠ zelfde output als ${conflict.otherLabel}` : "";
+        els.midiRouteDebug.textContent = `ROUTE: ${outputLabel} · ${channelLabel}${warn}`;
       }
     }
 
@@ -1953,7 +2021,7 @@ function template() {
   return `
     <header class="topbar card">
       <div>
-        <h1>Volca Style Sequencer</h1>
+        <h1>Volca Drum Sequencer</h1>
         <p class="sub">
           Klik een track of druk <strong>1–9</strong>, daarna <strong>M</strong> mute,
           <strong>S</strong> solo, <strong>I</strong> instellingen. Met instellingen open:
@@ -2055,6 +2123,21 @@ function template() {
                 <span class="switch-off">Uit</span>
               </span>
             </label>
+          </div>
+
+          <div class="field toggle-field">
+            <label for="midiTransportCommandsToggle">Start/Stop (MMC)</label>
+            <label class="switch" for="midiTransportCommandsToggle">
+              <input id="midiTransportCommandsToggle" type="checkbox" />
+              <span class="switch-ui" aria-hidden="true"></span>
+              <span class="switch-text">
+                <span class="switch-on">Aan</span>
+                <span class="switch-off">Uit</span>
+              </span>
+            </label>
+          </div>
+          <div class="midi-hint">
+            Uit = geen MIDI Start/Stop naar de Volca (vaak start anders de eigen play op Korg). Clock + noten blijven werken als MIDI aan staat.
           </div>
 
           <div id="drumMultiWrap" class="field toggle-field hidden">

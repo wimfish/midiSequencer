@@ -1,14 +1,20 @@
 import { clamp } from "../../shared/utils/math.js";
 import { saveJson, loadJson } from "../../shared/storage/jsonStorage.js";
-import { requestMidiAccess, listMidiOutputs } from "../../shared/midi/access.js";
 import {
+  requestMidiAccess,
+  listMidiOutputs,
+  resolveMidiOutput,
   getTransportSnapshot,
   getTransportStep,
   setTransportBpm,
   startTransport,
   stopTransport,
-  subscribeTransport
-} from "../../shared/midi/transport.js";
+  subscribeTransport,
+  getMidiSessionDevice,
+  persistMidiSessionFromState,
+  evaluateMidiRoutingConflict,
+  MIDI_DEVICE
+} from "../../shared/midi/midiLayer.js";
 
 const STORAGE_KEY = "volca-fm-prototype-v10";
 const MAX_NOTES_PER_STEP = 3;
@@ -155,6 +161,7 @@ export function fmSequencerFeature() {
     let transportUnsubscribe = null;
     let playbackIntervalId = null;
     let lastProcessedTransportStep = -1;
+    let fmUsedDraftOnMount = false;
 
     init();
     await initMidi();
@@ -474,9 +481,12 @@ export function fmSequencerFeature() {
     }
 
     function getMidiOutput() {
-      if (!state.midiEnabled || !state.midiOutputId) return null;
-      if (!state.midiOutputActive) return null;
-      return state.midiOutputs.find((output) => output.id === state.midiOutputId) || null;
+      return resolveMidiOutput({
+        midiAccess: state.midiAccess,
+        midiEnabled: state.midiEnabled,
+        midiOutputActive: state.midiOutputActive,
+        midiOutputId: state.midiOutputId
+      });
     }
 
     function sendMidiChord(notes, velocity = 110, durationMs = 180) {
@@ -485,8 +495,17 @@ export function fmSequencerFeature() {
       const channel = clamp(Number(state.midiChannel), 1, 16) - 1;
       const noteOn = 0x90 + channel;
       const noteOff = 0x80 + channel;
-      notes.forEach((midiNote) => output.send([noteOn, midiNote, velocity]));
-      window.setTimeout(() => notes.forEach((midiNote) => output.send([noteOff, midiNote, 0])), durationMs);
+      const sortedNotes = [...notes].sort((a, b) => a - b);
+      const baseOnAt = performance.now() + 2;
+      const gateMs = Math.max(55, Number(durationMs) || 180);
+      // Volca FM is more reliable with tiny note-on staggering than exact same-ms bursts.
+      const onSpreadMs = sortedNotes.length > 1 ? 2 : 0;
+      sortedNotes.forEach((midiNote, index) => {
+        const onAt = baseOnAt + index * onSpreadMs;
+        const offAt = onAt + gateMs;
+        output.send([noteOn, midiNote, velocity], onAt);
+        output.send([noteOff, midiNote, 0], offAt);
+      });
       return true;
     }
 
@@ -607,6 +626,7 @@ export function fmSequencerFeature() {
       render();
       setStatus("Prototype geladen");
       setDisplay("PATTERN GELADEN");
+      persistMidiSessionFromState(MIDI_DEVICE.FM, state);
     }
 
     async function initMidi() {
@@ -623,6 +643,7 @@ export function fmSequencerFeature() {
         state.midiOutputs = listMidiOutputs(state.midiAccess);
         populateMidiOutputs();
       };
+      handleFmMidiSessionAfterOutputsReady();
       setStatus("MIDI klaar");
       setDisplay("MIDI KLAAR");
     }
@@ -639,6 +660,27 @@ export function fmSequencerFeature() {
         state.midiOutputId = state.midiOutputs[0].id;
       }
       els.midiOutputSelect.value = state.midiOutputId;
+    }
+
+    function mergeMidiSessionIntoFmState() {
+      const s = getMidiSessionDevice("fm");
+      state.midiEnabled = !!s.midiEnabled;
+      state.midiOutputActive = s.midiOutputActive !== false;
+      state.midiChannel = clamp(Number(s.midiChannel) || 1, 1, 16);
+      state.midiOutputId = s.midiOutputId || "";
+      els.midiEnable.checked = state.midiEnabled;
+      els.midiOutputActiveToggle.checked = state.midiOutputActive;
+      els.midiChannelSelect.value = String(state.midiChannel);
+      populateMidiOutputs();
+      updateMidiActiveModeState();
+    }
+
+    function handleFmMidiSessionAfterOutputsReady() {
+      if (fmUsedDraftOnMount) {
+        persistMidiSessionFromState(MIDI_DEVICE.FM, state);
+      } else {
+        mergeMidiSessionIntoFmState();
+      }
     }
 
     function snapshotState() {
@@ -687,6 +729,7 @@ export function fmSequencerFeature() {
       els.toggleSettingsBtn.textContent = state.settingsOpen ? "▲ INSTELLINGEN OMHOOG" : "▼ INSTELLINGEN OMLAAG";
       updateGridScale();
       render();
+      persistMidiSessionFromState(MIDI_DEVICE.FM, state);
     }
 
     function populateChannels() {
@@ -787,6 +830,7 @@ export function fmSequencerFeature() {
         updateMidiActiveModeState();
         setStatus(state.midiEnabled ? "MIDI aan" : "MIDI uit, browser audio actief");
         setDisplay(state.midiEnabled ? "MIDI AAN" : "MIDI UIT");
+        persistMidiSessionFromState(MIDI_DEVICE.FM, state);
       });
       els.midiOutputActiveToggle.addEventListener("change", () => {
         state.midiOutputActive = !!els.midiOutputActiveToggle.checked;
@@ -796,18 +840,21 @@ export function fmSequencerFeature() {
           : state.midiEnabled ? "Output actief" : "Output actief (MIDI staat uit)";
         setStatus(label);
         setDisplay(state.midiOutputActive ? "OUTPUT ACTIEF" : "OUTPUT UIT");
+        persistMidiSessionFromState(MIDI_DEVICE.FM, state);
       });
       els.midiOutputSelect.addEventListener("change", () => {
         state.midiOutputId = els.midiOutputSelect.value;
         updateMidiActiveModeState();
         setStatus(state.midiOutputId ? "MIDI output gekozen" : "Geen MIDI output gekozen");
         setDisplay(state.midiOutputId ? "OUTPUT GEKOZEN" : "GEEN OUTPUT");
+        persistMidiSessionFromState(MIDI_DEVICE.FM, state);
       });
       els.midiChannelSelect.addEventListener("change", () => {
         state.midiChannel = Number(els.midiChannelSelect.value) || 1;
         updateMidiActiveModeState();
         setStatus(`MIDI kanaal ${state.midiChannel}`);
         setDisplay(`KANAAL ${state.midiChannel}`);
+        persistMidiSessionFromState(MIDI_DEVICE.FM, state);
       });
 
       resizeHandler = () => {
@@ -887,6 +934,7 @@ export function fmSequencerFeature() {
 
       bindEvents();
       transportUnsubscribe = subscribeTransport(handleTransportChange);
+      fmUsedDraftOnMount = !!fmSequencerDraft;
       if (fmSequencerDraft) restoreState(fmSequencerDraft);
       else {
         const transport = getTransportSnapshot();
@@ -906,7 +954,9 @@ export function fmSequencerFeature() {
       els.midiActiveModeState.classList.toggle("active-mode-off", !active);
       if (els.midiRouteDebug) {
         const outputLabel = els.midiOutputSelect.selectedOptions[0]?.textContent || "geen output";
-        els.midiRouteDebug.textContent = `ROUTE: ${outputLabel} · ch ${state.midiChannel}`;
+        const conflict = evaluateMidiRoutingConflict(MIDI_DEVICE.FM);
+        const warn = conflict.hasConflict ? ` · ⚠ zelfde output als ${conflict.otherLabel}` : "";
+        els.midiRouteDebug.textContent = `ROUTE: ${outputLabel} · ch ${state.midiChannel}${warn}`;
       }
     }
 
