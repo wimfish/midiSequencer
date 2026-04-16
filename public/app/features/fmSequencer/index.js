@@ -1,10 +1,19 @@
 import { clamp } from "../../shared/utils/math.js";
 import { saveJson, loadJson } from "../../shared/storage/jsonStorage.js";
 import { requestMidiAccess, listMidiOutputs } from "../../shared/midi/access.js";
+import {
+  getTransportSnapshot,
+  getTransportStep,
+  setTransportBpm,
+  startTransport,
+  stopTransport,
+  subscribeTransport
+} from "../../shared/midi/transport.js";
 
 const STORAGE_KEY = "volca-fm-prototype-v10";
 const MAX_NOTES_PER_STEP = 3;
 const VOLCA_SELECTION_KEY = "volca-selected";
+let fmSequencerDraft = null;
 
 export function fmSequencerFeature() {
   return { mount };
@@ -14,31 +23,34 @@ export function fmSequencerFeature() {
     document.body.classList.add("fm-prototype-page");
 
     const els = {
-      playBtn: document.getElementById("playBtn"),
-      stopBtn: document.getElementById("stopBtn"),
-      clearBtn: document.getElementById("clearBtn"),
-      saveBtn: document.getElementById("saveBtn"),
-      loadBtn: document.getElementById("loadBtn"),
-      toggleSettingsBtn: document.getElementById("toggleSettingsBtn"),
-      volcaSelect: document.getElementById("volcaSelect"),
-      modeSelect: document.getElementById("modeSelect"),
-      tempoInput: document.getElementById("tempoInput"),
-      stepCountSelect: document.getElementById("stepCountSelect"),
-      gateInput: document.getElementById("gateInput"),
-      octaveShift: document.getElementById("octaveShift"),
-      midiEnable: document.getElementById("midiEnable"),
-      midiOutputSelect: document.getElementById("midiOutputSelect"),
-      midiChannelSelect: document.getElementById("midiChannelSelect"),
-      statusText: document.getElementById("statusText"),
-      cursorInfo: document.getElementById("cursorInfo"),
-      statusDisplay: document.getElementById("statusDisplay"),
-      gridHeader: document.getElementById("gridHeader"),
-      noteLabels: document.getElementById("noteLabels"),
-      grid: document.getElementById("grid"),
-      modeHint: document.getElementById("modeHint"),
-      pianoWhiteKeys: document.getElementById("pianoWhiteKeys"),
-      pianoBlackKeys: document.getElementById("pianoBlackKeys"),
-      settingsPanel: document.getElementById("advancedPanel")
+      playBtn: root.querySelector("#playBtn"),
+      stopBtn: root.querySelector("#stopBtn"),
+      clearBtn: root.querySelector("#clearBtn"),
+      saveBtn: root.querySelector("#saveBtn"),
+      loadBtn: root.querySelector("#loadBtn"),
+      toggleSettingsBtn: root.querySelector("#toggleSettingsBtn"),
+      volcaSelect: root.querySelector("#fmVolcaSelect"),
+      modeSelect: root.querySelector("#modeSelect"),
+      tempoInput: root.querySelector("#tempoInput"),
+      stepCountSelect: root.querySelector("#stepCountSelect"),
+      gateInput: root.querySelector("#gateInput"),
+      octaveShift: root.querySelector("#octaveShift"),
+      midiEnable: root.querySelector("#fmMidiEnable"),
+      midiOutputActiveToggle: root.querySelector("#fmMidiOutputActiveToggle"),
+      midiActiveModeState: root.querySelector("#fmMidiActiveModeState"),
+      midiRouteDebug: root.querySelector("#fmMidiRouteDebug"),
+      midiOutputSelect: root.querySelector("#fmMidiOutputSelect"),
+      midiChannelSelect: root.querySelector("#fmMidiChannelSelect"),
+      statusText: root.querySelector("#statusText"),
+      cursorInfo: root.querySelector("#cursorInfo"),
+      statusDisplay: root.querySelector("#statusDisplay"),
+      gridHeader: root.querySelector("#gridHeader"),
+      noteLabels: root.querySelector("#noteLabels"),
+      grid: root.querySelector("#grid"),
+      modeHint: root.querySelector("#modeHint"),
+      pianoWhiteKeys: root.querySelector("#pianoWhiteKeys"),
+      pianoBlackKeys: root.querySelector("#pianoBlackKeys"),
+      settingsPanel: root.querySelector("#advancedPanel")
     };
 
     const BASE_NOTE_ROWS = [
@@ -125,6 +137,7 @@ export function fmSequencerFeature() {
       cursorRow: BASE_NOTE_ROWS.findIndex((row) => row.midi === 60),
       pattern: Array.from({ length: 16 }, () => []),
       midiEnabled: true,
+      midiOutputActive: true,
       midiAccess: null,
       midiOutputs: [],
       midiOutputId: "",
@@ -139,12 +152,17 @@ export function fmSequencerFeature() {
     let keydownHandler = null;
     let keyupHandler = null;
     let resizeHandler = null;
+    let transportUnsubscribe = null;
+    let playbackIntervalId = null;
+    let lastProcessedTransportStep = -1;
 
     init();
     await initMidi();
 
     return () => {
-      stopPlayback();
+      fmSequencerDraft = snapshotState();
+      stopPlaybackLoop();
+      if (transportUnsubscribe) transportUnsubscribe();
       document.body.classList.remove("fm-prototype-page");
       if (keydownHandler) document.removeEventListener("keydown", keydownHandler);
       if (keyupHandler) document.removeEventListener("keyup", keyupHandler);
@@ -457,6 +475,7 @@ export function fmSequencerFeature() {
 
     function getMidiOutput() {
       if (!state.midiEnabled || !state.midiOutputId) return null;
+      if (!state.midiOutputActive) return null;
       return state.midiOutputs.find((output) => output.id === state.midiOutputId) || null;
     }
 
@@ -530,31 +549,18 @@ export function fmSequencerFeature() {
 
     function startPlayback() {
       if (state.isPlaying) return;
-      state.isPlaying = true;
-      setStatus("Playback gestart");
-      setDisplay("PLAYBACK ACTIEF");
-      playCurrentStep();
-      state.timerId = window.setInterval(playCurrentStep, stepDurationMs());
-      render();
+      setTransportBpm(state.tempo);
+      startTransport();
     }
 
     function stopPlayback() {
-      state.isPlaying = false;
-      if (state.timerId) {
-        window.clearInterval(state.timerId);
-        state.timerId = null;
-      }
-      state.currentStep = 0;
-      render();
-      setStatus("Playback gestopt");
-      setDisplay("PLAYBACK GESTOPT");
+      if (!state.isPlaying) return;
+      stopTransport();
     }
 
     function restartPlaybackIfNeeded() {
       if (!state.isPlaying) return;
-      window.clearInterval(state.timerId);
-      playCurrentStep();
-      state.timerId = window.setInterval(playCurrentStep, stepDurationMs());
+      setTransportBpm(state.tempo);
     }
 
     function savePattern() {
@@ -596,6 +602,7 @@ export function fmSequencerFeature() {
       els.gateInput.value = String(state.gate);
       els.octaveShift.value = String(state.octaveShift);
       els.midiChannelSelect.value = String(state.midiChannel);
+      setTransportBpm(state.tempo);
       updateGridScale();
       render();
       setStatus("Prototype geladen");
@@ -634,6 +641,54 @@ export function fmSequencerFeature() {
       els.midiOutputSelect.value = state.midiOutputId;
     }
 
+    function snapshotState() {
+      return {
+        mode: state.mode,
+        steps: state.steps,
+        tempo: state.tempo,
+        gate: state.gate,
+        octaveShift: state.octaveShift,
+        pattern: structuredClone(state.pattern),
+        midiEnabled: state.midiEnabled,
+        midiOutputActive: state.midiOutputActive,
+        midiOutputId: state.midiOutputId,
+        midiChannel: state.midiChannel,
+        cursorStep: state.cursorStep,
+        cursorRow: state.cursorRow,
+        settingsOpen: state.settingsOpen
+      };
+    }
+
+    function restoreState(saved) {
+      const transport = getTransportSnapshot();
+      state.mode = saved.mode || state.mode;
+      state.steps = clamp(Number(saved.steps) || state.steps, 8, 32);
+      state.tempo = clamp(Number(transport.bpm) || Number(saved.tempo) || state.tempo, 40, 240);
+      state.gate = clamp(Number(saved.gate) || state.gate, 5, 95);
+      state.octaveShift = Number(saved.octaveShift) || 0;
+      state.pattern = Array.from({ length: state.steps }, (_, i) => normalizeStep(saved.pattern?.[i] || []));
+      state.midiEnabled = saved.midiEnabled ?? state.midiEnabled;
+      state.midiOutputActive = saved.midiOutputActive ?? state.midiOutputActive;
+      state.midiOutputId = saved.midiOutputId || state.midiOutputId;
+      state.midiChannel = Number(saved.midiChannel) || state.midiChannel;
+      state.cursorStep = clamp(Number(saved.cursorStep) || 0, 0, state.steps - 1);
+      state.cursorRow = clamp(Number(saved.cursorRow) || 0, 0, BASE_NOTE_ROWS.length - 1);
+      state.settingsOpen = saved.settingsOpen ?? state.settingsOpen;
+      els.modeSelect.value = state.mode;
+      els.stepCountSelect.value = String(state.steps);
+      els.tempoInput.value = String(state.tempo);
+      els.gateInput.value = String(state.gate);
+      els.octaveShift.value = String(state.octaveShift);
+      els.midiEnable.checked = !!state.midiEnabled;
+      els.midiOutputActiveToggle.checked = !!state.midiOutputActive;
+      updateMidiActiveModeState();
+      els.midiChannelSelect.value = String(state.midiChannel);
+      els.settingsPanel.style.display = state.settingsOpen ? "block" : "none";
+      els.toggleSettingsBtn.textContent = state.settingsOpen ? "▲ INSTELLINGEN OMHOOG" : "▼ INSTELLINGEN OMLAAG";
+      updateGridScale();
+      render();
+    }
+
     function populateChannels() {
       els.midiChannelSelect.innerHTML = "";
       for (let i = 1; i <= 16; i += 1) {
@@ -656,7 +711,7 @@ export function fmSequencerFeature() {
     }
 
     function flashPianoMidi(midi) {
-      const btn = document.querySelector(`.piano-key[data-midi="${midi}"]`);
+      const btn = root.querySelector(`.piano-key[data-midi="${midi}"]`);
       if (!btn) return;
       btn.classList.add("active");
       window.setTimeout(() => btn.classList.remove("active"), 140);
@@ -688,6 +743,8 @@ export function fmSequencerFeature() {
         const next = els.volcaSelect.value;
         localStorage.setItem(VOLCA_SELECTION_KEY, next);
         if (next !== "fm") {
+          // FM selector should remain FM; this control is only for routing away.
+          els.volcaSelect.value = "fm";
           window.location.hash = "#/style";
         }
       });
@@ -710,6 +767,7 @@ export function fmSequencerFeature() {
       els.tempoInput.addEventListener("change", () => {
         state.tempo = clamp(Number(els.tempoInput.value) || 132, 40, 240);
         els.tempoInput.value = String(state.tempo);
+        setTransportBpm(state.tempo);
         restartPlaybackIfNeeded();
       });
       els.stepCountSelect.addEventListener("change", () => {
@@ -726,16 +784,28 @@ export function fmSequencerFeature() {
       });
       els.midiEnable.addEventListener("change", () => {
         state.midiEnabled = els.midiEnable.checked;
+        updateMidiActiveModeState();
         setStatus(state.midiEnabled ? "MIDI aan" : "MIDI uit, browser audio actief");
         setDisplay(state.midiEnabled ? "MIDI AAN" : "MIDI UIT");
       });
+      els.midiOutputActiveToggle.addEventListener("change", () => {
+        state.midiOutputActive = !!els.midiOutputActiveToggle.checked;
+        updateMidiActiveModeState();
+        const label = !state.midiOutputActive
+          ? state.midiEnabled ? "Output tijdelijk uit" : "MIDI uit + output uit"
+          : state.midiEnabled ? "Output actief" : "Output actief (MIDI staat uit)";
+        setStatus(label);
+        setDisplay(state.midiOutputActive ? "OUTPUT ACTIEF" : "OUTPUT UIT");
+      });
       els.midiOutputSelect.addEventListener("change", () => {
         state.midiOutputId = els.midiOutputSelect.value;
+        updateMidiActiveModeState();
         setStatus(state.midiOutputId ? "MIDI output gekozen" : "Geen MIDI output gekozen");
         setDisplay(state.midiOutputId ? "OUTPUT GEKOZEN" : "GEEN OUTPUT");
       });
       els.midiChannelSelect.addEventListener("change", () => {
         state.midiChannel = Number(els.midiChannelSelect.value) || 1;
+        updateMidiActiveModeState();
         setStatus(`MIDI kanaal ${state.midiChannel}`);
         setDisplay(`KANAAL ${state.midiChannel}`);
       });
@@ -747,6 +817,7 @@ export function fmSequencerFeature() {
       window.addEventListener("resize", resizeHandler);
 
       keydownHandler = (event) => {
+        if (root.hidden) return;
         const tag = document.activeElement?.tagName;
         const typing = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
         const lower = event.key.toLowerCase();
@@ -757,13 +828,6 @@ export function fmSequencerFeature() {
           state.heldKeys.add(lower);
           event.preventDefault();
           handleMappedKey(lower);
-          return;
-        }
-
-        if (event.code === "Space") {
-          event.preventDefault();
-          if (state.isPlaying) stopPlayback();
-          else startPlayback();
           return;
         }
 
@@ -808,6 +872,7 @@ export function fmSequencerFeature() {
       document.addEventListener("keydown", keydownHandler);
 
       keyupHandler = (event) => {
+        if (root.hidden) return;
         state.heldKeys.delete(event.key.toLowerCase());
       };
       document.addEventListener("keyup", keyupHandler);
@@ -816,14 +881,81 @@ export function fmSequencerFeature() {
     function init() {
       populateChannels();
 
-      // Keep the Volca selector in sync across views.
-      const savedVolca = localStorage.getItem(VOLCA_SELECTION_KEY) || "fm";
-      els.volcaSelect.value = savedVolca === "fm" ? "fm" : savedVolca;
-      localStorage.setItem(VOLCA_SELECTION_KEY, els.volcaSelect.value);
+      // FM screen should always present itself as FM.
+      // Navigation to drum/beats/sample happens when user changes this selector.
+      els.volcaSelect.value = "fm";
 
       bindEvents();
+      transportUnsubscribe = subscribeTransport(handleTransportChange);
+      if (fmSequencerDraft) restoreState(fmSequencerDraft);
+      else {
+        const transport = getTransportSnapshot();
+        state.tempo = clamp(Number(transport.bpm) || state.tempo, 40, 240);
+        els.tempoInput.value = String(state.tempo);
+      }
+      updateMidiActiveModeState();
       updateGridScale();
       render();
+    }
+
+    function updateMidiActiveModeState() {
+      if (!els.midiActiveModeState) return;
+      const active = !!state.midiEnabled && !!state.midiOutputActive && !!state.midiOutputId;
+      els.midiActiveModeState.textContent = `ACTIVE MODE: ${active ? "AAN" : "UIT"}`;
+      els.midiActiveModeState.classList.toggle("active-mode-on", active);
+      els.midiActiveModeState.classList.toggle("active-mode-off", !active);
+      if (els.midiRouteDebug) {
+        const outputLabel = els.midiOutputSelect.selectedOptions[0]?.textContent || "geen output";
+        els.midiRouteDebug.textContent = `ROUTE: ${outputLabel} · ch ${state.midiChannel}`;
+      }
+    }
+
+    function handleTransportChange(snapshot) {
+      const nextTempo = clamp(Number(snapshot.bpm) || state.tempo, 40, 240);
+      state.tempo = nextTempo;
+      if (Number(els.tempoInput.value) !== nextTempo) els.tempoInput.value = String(nextTempo);
+      if (snapshot.isPlaying === state.isPlaying) return;
+      state.isPlaying = snapshot.isPlaying;
+      if (state.isPlaying) {
+        lastProcessedTransportStep = getTransportStep() - 1;
+        startPlaybackLoop();
+        setStatus("Playback gestart");
+        setDisplay("PLAYBACK ACTIEF");
+      } else {
+        stopPlaybackLoop();
+        state.currentStep = 0;
+        render();
+        setStatus("Playback gestopt");
+        setDisplay("PLAYBACK GESTOPT");
+      }
+    }
+
+    function startPlaybackLoop() {
+      stopPlaybackLoop();
+      playbackIntervalId = window.setInterval(processTransportSteps, 25);
+      processTransportSteps();
+    }
+
+    function stopPlaybackLoop() {
+      if (!playbackIntervalId) return;
+      window.clearInterval(playbackIntervalId);
+      playbackIntervalId = null;
+    }
+
+    function processTransportSteps() {
+      const currentTransportStep = getTransportStep();
+      if (currentTransportStep <= lastProcessedTransportStep) return;
+      for (let step = lastProcessedTransportStep + 1; step <= currentTransportStep; step += 1) {
+        state.currentStep = step % state.steps;
+        const notes = getStepNotes(state.currentStep);
+        if (notes.length) {
+          const duration = Math.max(40, Math.floor(stepDurationMs() * (state.gate / 100)));
+          previewChord(notes, 112, duration);
+          setDisplay(`STEP ${state.currentStep + 1} SPEELT`);
+        }
+        render();
+      }
+      lastProcessedTransportStep = currentTransportStep;
     }
   }
 }
@@ -857,8 +989,8 @@ function template() {
       <div id="advancedPanel" class="advanced-panel">
         <section class="controls card fm-main-controls">
           <div class="field">
-            <label for="volcaSelect">Volca</label>
-            <select id="volcaSelect">
+            <label for="fmVolcaSelect">Volca</label>
+            <select id="fmVolcaSelect">
               <option value="beats">Volca Beats</option>
               <option value="sample">Volca Sample</option>
               <option value="drum">Volca Drum</option>
@@ -894,9 +1026,9 @@ function template() {
 
         <section class="midi card fm-midi-panel">
           <div class="toggle-field">
-            <label for="midiEnable">MIDI</label>
-            <label class="switch" for="midiEnable">
-              <input id="midiEnable" type="checkbox" checked />
+            <label for="fmMidiEnable">MIDI</label>
+            <label class="switch" for="fmMidiEnable">
+              <input id="fmMidiEnable" type="checkbox" checked />
               <span class="switch-ui"></span>
               <span class="switch-text">
                 <span class="switch-on">Aan</span>
@@ -906,15 +1038,29 @@ function template() {
           </div>
 
           <div class="field">
-            <label for="midiOutputSelect">Output</label>
-            <select id="midiOutputSelect">
+            <label for="fmMidiOutputSelect">Output</label>
+            <select id="fmMidiOutputSelect">
               <option value="">Geen output</option>
             </select>
           </div>
 
+          <div class="toggle-field">
+            <label for="fmMidiOutputActiveToggle">Output actief</label>
+            <label class="switch" for="fmMidiOutputActiveToggle">
+              <input id="fmMidiOutputActiveToggle" type="checkbox" checked />
+              <span class="switch-ui"></span>
+              <span class="switch-text">
+                <span class="switch-on">Aan</span>
+                <span class="switch-off">Uit</span>
+              </span>
+            </label>
+          </div>
+          <div class="midi-hint" id="fmMidiActiveModeState">ACTIVE MODE: UIT</div>
+          <div class="midi-hint" id="fmMidiRouteDebug">ROUTE: geen output · ch 1</div>
+
           <div class="field">
-            <label for="midiChannelSelect">Kanaal</label>
-            <select id="midiChannelSelect"></select>
+            <label for="fmMidiChannelSelect">Kanaal</label>
+            <select id="fmMidiChannelSelect"></select>
           </div>
 
           <div class="midi-hint" id="modeHint">

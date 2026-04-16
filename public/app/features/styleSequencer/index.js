@@ -4,6 +4,14 @@ import { clamp } from "../../shared/utils/math.js";
 import { qs } from "../../shared/utils/dom.js";
 import { saveJson, loadJson } from "../../shared/storage/jsonStorage.js";
 import { requestMidiAccess, listMidiOutputs } from "../../shared/midi/access.js";
+import {
+  getTransportSnapshot,
+  getTransportStep,
+  setTransportBpm,
+  startTransport,
+  stopTransport,
+  subscribeTransport
+} from "../../shared/midi/transport.js";
 
 const STORAGE_KEY = "volca-sequencer-save";
 const VOLCA_SELECTION_KEY = "volca-selected";
@@ -39,6 +47,7 @@ const VOLUME_LEVELS = [
   { step: 5, label: "harder", velocity: 122 }
 ];
 const DEFAULT_STEP_VELOCITY = VOLUME_LEVELS[2].velocity;
+let styleSequencerDraft = null;
 
 export function styleSequencerFeature() {
   return { mount };
@@ -50,6 +59,10 @@ export function styleSequencerFeature() {
     let audioCtx = null;
     let globalPointerUpHandler = null;
     let globalKeydownHandler = null;
+    let playbackIntervalId = null;
+    let transportUnsubscribe = null;
+    let lastProcessedTransportStep = -1;
+    let lastTransportOutputId = "";
 
     const state = {
       style: "Drum & Bass",
@@ -64,9 +77,11 @@ export function styleSequencerFeature() {
       nextStepTime: 0,
       timerId: null,
       drawMode: null,
+      octaveHotkeyHeld: false,
       midiAccess: null,
       midiOutputId: "",
       midiEnabled: false,
+      midiOutputActive: true,
       midiClockEnabled: true,
       drumMultiMode: false,
       drumMultiSendNoteOff: true,
@@ -89,9 +104,13 @@ export function styleSequencerFeature() {
     init();
 
     return () => {
-      if (state.timerId) clearTimeout(state.timerId);
+      styleSequencerDraft = snapshotState();
+      stopPlaybackLoop();
+      if (state.isPlaying) sendMidiTransport(false, lastTransportOutputId || state.midiOutputId);
+      if (transportUnsubscribe) transportUnsubscribe();
       if (globalPointerUpHandler) window.removeEventListener("pointerup", globalPointerUpHandler);
       if (globalKeydownHandler) document.removeEventListener("keydown", globalKeydownHandler);
+      document.removeEventListener("keyup", onKeyup);
       if (state.midiAccess) state.midiAccess.onstatechange = null;
     };
 
@@ -114,6 +133,9 @@ export function styleSequencerFeature() {
         "tracksContainer",
         "statusText",
         "midiEnable",
+        "styleMidiOutputActiveToggle",
+        "midiActiveModeState",
+        "midiRouteDebug",
         "midiOutputSelect",
         "midiChannelSelect",
         "clockEnable",
@@ -150,14 +172,17 @@ export function styleSequencerFeature() {
       toggleSettingsPanel(true);
       setupAudio();
       setupMidi();
+      transportUnsubscribe = subscribeTransport(handleTransportChange);
 
       // Keep the Volca selector in sync across views.
       const savedVolca = localStorage.getItem(VOLCA_SELECTION_KEY);
-      if (savedVolca) {
+      if (savedVolca && savedVolca !== "fm") {
         els.volcaSelect.value = savedVolca;
         state.volca = savedVolca;
       } else {
-        localStorage.setItem(VOLCA_SELECTION_KEY, els.volcaSelect.value);
+        els.volcaSelect.value = "drum";
+        state.volca = "drum";
+        localStorage.setItem(VOLCA_SELECTION_KEY, "drum");
       }
 
       // If user selected FM in another view, jump immediately.
@@ -166,8 +191,14 @@ export function styleSequencerFeature() {
         return;
       }
 
-      // This will also generate pattern + render when requested.
-      applyVolcaProfile(true);
+      const shouldUseDraft =
+        !!styleSequencerDraft && (!savedVolca || savedVolca === styleSequencerDraft.volca);
+      if (shouldUseDraft) {
+        restoreState(styleSequencerDraft);
+      } else {
+        applyVolcaProfile(false);
+        generatePattern();
+      }
 
       globalPointerUpHandler = () => {
         state.drawMode = null;
@@ -177,7 +208,7 @@ export function styleSequencerFeature() {
     }
 
     function bindEls() {
-      templateIds().forEach((id) => (els[id] = qs(id)));
+      templateIds().forEach((id) => (els[id] = qs(id, root)));
     }
 
     function populateStyles() {
@@ -205,6 +236,7 @@ export function styleSequencerFeature() {
         state.style = els.styleSelect.value;
         state.bpm = styleDefaults[state.style].bpm;
         els.bpmInput.value = state.bpm;
+        setTransportBpm(state.bpm);
         generatePattern();
       });
       els.variationSelect.addEventListener("change", () => {
@@ -218,16 +250,20 @@ export function styleSequencerFeature() {
       });
       els.volcaSelect.addEventListener("change", () => {
         const next = els.volcaSelect.value;
-        localStorage.setItem(VOLCA_SELECTION_KEY, next);
         if (next === "fm") {
+          // Keep the last non-FM style target persisted.
+          els.volcaSelect.value = state.volca;
           window.location.hash = "#/fm";
           return;
         }
-        applyVolcaProfile(true);
+        localStorage.setItem(VOLCA_SELECTION_KEY, next);
+        applyVolcaProfile(false);
+        generatePattern();
       });
       els.bpmInput.addEventListener("input", () => {
         state.bpm = clamp(Number(els.bpmInput.value) || 120, 40, 240);
         els.bpmInput.value = state.bpm;
+        setTransportBpm(state.bpm);
         setStatus(`BPM ${state.bpm}`);
       });
       els.generateBtn.addEventListener("click", generatePattern);
@@ -268,13 +304,38 @@ export function styleSequencerFeature() {
       });
       els.midiEnable.addEventListener("change", () => {
         state.midiEnabled = els.midiEnable.checked;
+        if (state.isPlaying && state.midiEnabled && state.midiOutputActive && state.midiOutputId) {
+          sendMidiTransport("continue");
+        }
+        updateMidiActiveModeState();
         setStatus(state.midiEnabled ? "MIDI aan" : "MIDI uit");
       });
+      els.styleMidiOutputActiveToggle.addEventListener("change", () => {
+        state.midiOutputActive = !!els.styleMidiOutputActiveToggle.checked;
+        updateMidiActiveModeState();
+        if (!state.midiOutputActive) {
+          setStatus(state.midiEnabled ? "Output tijdelijk uit" : "MIDI uit + output uit");
+          return;
+        }
+        if (state.isPlaying && state.midiEnabled && state.midiOutputId) {
+          sendMidiTransport("continue");
+        }
+        setStatus(state.midiEnabled ? "Output actief" : "Output actief (MIDI staat uit)");
+      });
       els.midiOutputSelect.addEventListener("change", () => {
+        const previousOutputId = state.midiOutputId;
         state.midiOutputId = els.midiOutputSelect.value;
+        updateMidiActiveModeState();
+        if (state.isPlaying && previousOutputId && previousOutputId !== state.midiOutputId) {
+          sendMidiTransport(false, previousOutputId);
+        }
+        if (state.isPlaying && state.midiEnabled && state.midiOutputActive && state.midiOutputId) {
+          sendMidiTransport("continue");
+        }
         setStatus(`MIDI output: ${els.midiOutputSelect.selectedOptions[0]?.textContent || "geen"}`);
       });
       els.midiChannelSelect.addEventListener("change", () => setStatus(`Kanaal ${els.midiChannelSelect.value}`));
+      els.midiChannelSelect.addEventListener("change", updateMidiActiveModeState);
       els.clockEnable.addEventListener("change", () => {
         state.midiClockEnabled = els.clockEnable.checked;
       });
@@ -306,6 +367,7 @@ export function styleSequencerFeature() {
 
       globalKeydownHandler = onKeydown;
       document.addEventListener("keydown", globalKeydownHandler);
+      document.addEventListener("keyup", onKeyup);
     }
 
     function toggleSettingsPanel(forceOpen) {
@@ -343,8 +405,70 @@ export function styleSequencerFeature() {
         opt.textContent = output.name;
         els.midiOutputSelect.appendChild(opt);
       }
-      els.midiOutputSelect.value = current || "";
+      els.midiOutputSelect.value = state.midiOutputId || current || "";
       state.midiOutputId = els.midiOutputSelect.value;
+    }
+
+    function snapshotState() {
+      return {
+        style: state.style,
+        variation: state.variation,
+        length: state.length,
+        bpm: state.bpm,
+        volca: state.volca,
+        activeTrack: state.activeTrack,
+        activeSetting: state.activeSetting,
+        midiOutputId: state.midiOutputId,
+        midiEnabled: state.midiEnabled,
+        midiOutputActive: state.midiOutputActive,
+        midiClockEnabled: state.midiClockEnabled,
+        drumMultiMode: state.drumMultiMode,
+        drumMultiSendNoteOff: state.drumMultiSendNoteOff,
+        drumCcLeadMs: state.drumCcLeadMs,
+        drumCcStaggerMs: state.drumCcStaggerMs,
+        drumNoteStaggerMs: state.drumNoteStaggerMs,
+        tracks: state.tracks.map((track) => structuredClone(track))
+      };
+    }
+
+    function restoreState(saved) {
+      state.style = saved.style || state.style;
+      state.variation = saved.variation || state.variation;
+      state.length = clamp(Number(saved.length) || state.length, 8, 64);
+      state.bpm = clamp(Number(saved.bpm) || state.bpm, 40, 240);
+      state.volca = saved.volca || state.volca;
+      state.activeTrack = Number(saved.activeTrack) || 0;
+      state.activeSetting = saved.activeSetting || state.activeSetting;
+      state.midiOutputId = saved.midiOutputId || "";
+      state.midiEnabled = saved.midiEnabled ?? state.midiEnabled;
+      state.midiOutputActive = saved.midiOutputActive ?? state.midiOutputActive;
+      state.midiClockEnabled = saved.midiClockEnabled ?? state.midiClockEnabled;
+      state.drumMultiMode = !!saved.drumMultiMode;
+      state.drumMultiSendNoteOff = saved.drumMultiSendNoteOff ?? state.drumMultiSendNoteOff;
+      state.drumCcLeadMs = clamp(Number(saved.drumCcLeadMs) || state.drumCcLeadMs, 0, 40);
+      state.drumCcStaggerMs = clamp(Number(saved.drumCcStaggerMs) || state.drumCcStaggerMs, 0, 20);
+      state.drumNoteStaggerMs = clamp(Number(saved.drumNoteStaggerMs) || state.drumNoteStaggerMs, 0, 20);
+      els.styleSelect.value = state.style;
+      els.variationSelect.value = state.variation;
+      els.lengthSelect.value = String(state.length);
+      els.volcaSelect.value = state.volca;
+      els.bpmInput.value = String(state.bpm);
+      els.midiEnable.checked = !!state.midiEnabled;
+      els.styleMidiOutputActiveToggle.checked = !!state.midiOutputActive;
+      els.clockEnable.checked = !!state.midiClockEnabled;
+      updateMidiActiveModeState();
+      els.drumMultiToggle.checked = !!state.drumMultiMode;
+      els.drumMultiNoteOffToggle.checked = !!state.drumMultiSendNoteOff;
+      els.drumBufferMsInput.value = String(state.drumCcLeadMs);
+      els.drumCcStaggerMsInput.value = String(state.drumCcStaggerMs);
+      els.drumNoteStaggerMsInput.value = String(state.drumNoteStaggerMs);
+      applyVolcaProfile(false);
+      state.tracks = (saved.tracks || []).map((track) => ({ ...track, id: crypto.randomUUID() }));
+      state.activeTrack = clamp(state.activeTrack, 0, Math.max(0, state.tracks.length - 1));
+      regenerateTrackLengths();
+      updateDrumMultiUI();
+      render();
+      setTransportBpm(state.bpm);
     }
 
     function createTrackFromTemplate(template, index) {
@@ -386,9 +510,6 @@ export function styleSequencerFeature() {
       state.activeTrack = 0;
       state.activeSetting = "probability";
       if (resetPattern) {
-        const defaultBpm = styleDefaults[state.style].bpm;
-        state.bpm = defaultBpm;
-        els.bpmInput.value = defaultBpm;
         generatePattern();
       }
       updateDrumMultiUI();
@@ -532,8 +653,6 @@ export function styleSequencerFeature() {
     function generatePattern() {
       const cfg = styleDefaults[state.style];
       if (!cfg) return;
-      state.bpm = cfg.bpm;
-      els.bpmInput.value = cfg.bpm;
       resetDrumMultiCc28Memory();
       state.tracks.forEach((track) => {
         track.steps = Array.from({ length: state.length }, () => ({ on: false, velocity: DEFAULT_STEP_VELOCITY }));
@@ -1173,6 +1292,11 @@ export function styleSequencerFeature() {
     }
 
     function onKeydown(e) {
+      if (root.hidden) return;
+      if (e.key.toLowerCase() === "o") {
+        state.octaveHotkeyHeld = true;
+        return;
+      }
       if (state.drumRollPointerHold) {
         const octaveNumber = Number(e.key);
         if (octaveNumber >= DRUM_ROLL_OCTAVE_MIN && octaveNumber <= DRUM_ROLL_OCTAVE_MAX) {
@@ -1191,14 +1315,21 @@ export function styleSequencerFeature() {
           return;
         }
       }
+      if (state.octaveHotkeyHeld) {
+        const octaveNumber = Number(e.key);
+        if (octaveNumber >= DRUM_ROLL_OCTAVE_MIN && octaveNumber <= DRUM_ROLL_OCTAVE_MAX) {
+          e.preventDefault();
+          const track = state.tracks[state.activeTrack];
+          if (!track) return;
+          track.rollInputOctave = normalizeRollInputOctave(octaveNumber);
+          setStatus(`${track.name} standaard octaaf ${octaveNumber}`);
+          render();
+          return;
+        }
+      }
 
       const tag = document.activeElement?.tagName;
       const isTyping = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
-      if (e.code === "Space" && !isTyping) {
-        e.preventDefault();
-        togglePlay();
-        return;
-      }
       if (isTyping) return;
 
       const activeTrack = state.tracks[state.activeTrack];
@@ -1306,6 +1437,11 @@ export function styleSequencerFeature() {
       }
     }
 
+    function onKeyup(e) {
+      if (root.hidden) return;
+      if (e.key.toLowerCase() === "o") state.octaveHotkeyHeld = false;
+    }
+
     function shiftActiveRollNote(delta) {
       if (!(state.volca === "drum" && state.drumMultiMode)) return false;
       const track = state.tracks[state.activeTrack];
@@ -1325,38 +1461,11 @@ export function styleSequencerFeature() {
     function togglePlay() {
       if (!audioCtx) return;
       if (audioCtx.state === "suspended") audioCtx.resume();
-      state.isPlaying = !state.isPlaying;
-      els.playBtn.textContent = state.isPlaying ? "Stop" : "Play";
-      if (state.isPlaying) {
-        state.currentStep = 0;
-        state.nextStepTime = audioCtx.currentTime + 0.05;
-        state.lastClockTick = performance.now();
-        resetDrumMultiCc28Memory();
-        render();
-        scheduler();
-        sendMidiTransport(true);
-        setStatus("Play");
-      } else {
-        clearTimeout(state.timerId);
-        sendMidiTransport(false);
-        setStatus("Stop");
-        render();
+      if (state.isPlaying) stopTransport();
+      else {
+        setTransportBpm(state.bpm);
+        startTransport();
       }
-    }
-
-    function scheduler() {
-      const lookAhead = 0.1;
-      while (state.nextStepTime < audioCtx.currentTime + lookAhead) {
-        scheduleStep(state.currentStep, state.nextStepTime);
-        advanceStep();
-      }
-      if (state.isPlaying) state.timerId = setTimeout(scheduler, 25);
-    }
-
-    function advanceStep() {
-      const secondsPerStep = 60 / state.bpm / 4;
-      state.nextStepTime += secondsPerStep;
-      state.currentStep = (state.currentStep + 1) % state.length;
     }
 
     function getTrackStepNote(track, stepIndex) {
@@ -1420,7 +1529,7 @@ export function styleSequencerFeature() {
         sendMidiNote(track, playTime, accentData, userVelocity, noteOverride, trackOrder);
       });
 
-      if (state.midiEnabled && state.midiClockEnabled) {
+      if (state.midiEnabled && state.midiOutputActive && state.midiClockEnabled) {
         if (drumMultiHitCount >= 2) {
           queueMicrotask(() => sendMidiClockBurst());
         } else {
@@ -1533,14 +1642,20 @@ export function styleSequencerFeature() {
     }
 
     function getMidiOutput() {
-      if (!state.midiAccess || !state.midiEnabled || !state.midiOutputId) return null;
+      if (!state.midiAccess || !state.midiEnabled || !state.midiOutputActive || !state.midiOutputId) return null;
       return state.midiAccess.outputs.get(state.midiOutputId) || null;
     }
 
-    function sendMidiTransport(start) {
-      const output = getMidiOutput();
+    function sendMidiTransport(command, targetOutputId = state.midiOutputId) {
+      const output =
+        state.midiAccess && state.midiEnabled && targetOutputId
+          ? state.midiAccess.outputs.get(targetOutputId) || null
+          : null;
       if (!output) return;
-      output.send([start ? 0xfa : 0xfc]);
+      if (command === true || command === "start") output.send([0xfa]);
+      else if (command === false || command === "stop") output.send([0xfc]);
+      else if (command === "continue") output.send([0xfb]);
+      lastTransportOutputId = targetOutputId || "";
     }
 
     function sendMidiClockBurst() {
@@ -1761,12 +1876,75 @@ export function styleSequencerFeature() {
 
       resetDrumMultiCc28Memory();
       els.bpmInput.value = state.bpm;
+      setTransportBpm(state.bpm);
       render();
       setStatus("Pattern geladen");
     }
 
     function setStatus(msg) {
       els.statusText.textContent = msg;
+    }
+
+    function updateMidiActiveModeState() {
+      if (!els.midiActiveModeState) return;
+      const active = !!state.midiEnabled && !!state.midiOutputActive && !!state.midiOutputId;
+      els.midiActiveModeState.textContent = `ACTIVE MODE: ${active ? "AAN" : "UIT"}`;
+      els.midiActiveModeState.classList.toggle("active-mode-on", active);
+      els.midiActiveModeState.classList.toggle("active-mode-off", !active);
+      if (els.midiRouteDebug) {
+        const outputLabel = els.midiOutputSelect.selectedOptions[0]?.textContent || "geen output";
+        const channelLabel = state.drumMultiMode ? "per-track kanaal" : `ch ${els.midiChannelSelect.value}`;
+        els.midiRouteDebug.textContent = `ROUTE: ${outputLabel} · ${channelLabel}`;
+      }
+    }
+
+    function handleTransportChange(snapshot) {
+      const nextBpm = clamp(Number(snapshot.bpm) || state.bpm, 40, 240);
+      state.bpm = nextBpm;
+      if (Number(els.bpmInput.value) !== nextBpm) els.bpmInput.value = String(nextBpm);
+      if (snapshot.isPlaying === state.isPlaying) return;
+
+      state.isPlaying = snapshot.isPlaying;
+      els.playBtn.textContent = state.isPlaying ? "Stop" : "Play";
+      if (state.isPlaying) {
+        state.lastClockTick = performance.now();
+        resetDrumMultiCc28Memory();
+        lastProcessedTransportStep = getTransportStep() - 1;
+        startPlaybackLoop();
+        sendMidiTransport(true);
+        setStatus("Play");
+      } else {
+        stopPlaybackLoop();
+        sendMidiTransport(false);
+        setStatus("Stop");
+      }
+      render();
+    }
+
+    function startPlaybackLoop() {
+      stopPlaybackLoop();
+      playbackIntervalId = window.setInterval(processTransportSteps, 25);
+      processTransportSteps();
+    }
+
+    function stopPlaybackLoop() {
+      if (!playbackIntervalId) return;
+      window.clearInterval(playbackIntervalId);
+      playbackIntervalId = null;
+    }
+
+    function processTransportSteps() {
+      const snapshot = getTransportSnapshot();
+      if (!snapshot.isPlaying) return;
+      const currentTransportStep = getTransportStep();
+      if (currentTransportStep <= lastProcessedTransportStep) return;
+      for (let step = lastProcessedTransportStep + 1; step <= currentTransportStep; step++) {
+        const localStep = step % state.length;
+        state.currentStep = localStep;
+        scheduleStep(localStep, audioCtx.currentTime);
+      }
+      lastProcessedTransportStep = currentTransportStep;
+      updatePlaybackVisuals();
     }
   }
 }
@@ -1847,6 +2025,20 @@ function template() {
               <option value="">Geen output</option>
             </select>
           </div>
+
+          <div class="field toggle-field">
+            <label for="styleMidiOutputActiveToggle">Output actief</label>
+            <label class="switch" for="styleMidiOutputActiveToggle">
+              <input id="styleMidiOutputActiveToggle" type="checkbox" checked />
+              <span class="switch-ui" aria-hidden="true"></span>
+              <span class="switch-text">
+                <span class="switch-on">Aan</span>
+                <span class="switch-off">Uit</span>
+              </span>
+            </label>
+          </div>
+          <div class="midi-hint" id="midiActiveModeState">ACTIVE MODE: UIT</div>
+          <div class="midi-hint" id="midiRouteDebug">ROUTE: geen output · ch 1</div>
 
           <div class="field small">
             <label for="midiChannelSelect">Kanaal</label>

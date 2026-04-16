@@ -214,6 +214,16 @@ select option { color: #111; background: #f1ece4; }
   padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line);
   background: #0f1318;
 }
+.midi-hint.active-mode-on {
+  color: #7bffbc;
+  border-color: rgba(56, 214, 132, 0.65);
+  background: rgba(26, 84, 47, 0.35);
+}
+.midi-hint.active-mode-off {
+  color: #ff8f8f;
+  border-color: rgba(219, 89, 89, 0.6);
+  background: rgba(84, 30, 30, 0.35);
+}
 #midiOutputSelect { min-width: 0; width: 100%; max-width: 100%; }
 
 /* ── Tracks container ──────────────────────────────────────── */

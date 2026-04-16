@@ -16,30 +16,55 @@ const features = {
   fm: fmSequencerFeature()
 };
 
+const routeRoots = Object.fromEntries(
+  Object.keys(features).map((key) => {
+    const el = document.createElement("div");
+    el.dataset.routeRoot = key;
+    el.hidden = true;
+    viewRoot.appendChild(el);
+    return [key, el];
+  })
+);
+
+const mounted = Object.create(null);
+
 const router = createRouter({
   defaultRoute: "style",
   onRouteChange: async (routeKey) => {
-    await mountRoute(routeKey);
+    await ensureMounted(routeKey);
+    showRoute(routeKey);
   }
 });
 
-let current = { key: null, unmount: null };
+async function ensureMounted(key) {
+  const routeKey = features[key] ? key : "style";
+  if (mounted[routeKey]) return;
+  const { mount } = features[routeKey];
+  const unmount = await mount(routeRoots[routeKey]);
+  mounted[routeKey] = typeof unmount === "function" ? unmount : null;
+}
 
-async function mountRoute(key) {
-  if (!features[key]) key = "style";
+function showRoute(key) {
+  const routeKey = features[key] ? key : "style";
+  Object.entries(routeRoots).forEach(([candidate, el]) => {
+    el.hidden = candidate !== routeKey;
+  });
+  document.body.classList.toggle("fm-prototype-page", routeKey === "fm");
 
-  if (current.unmount) {
-    try {
-      current.unmount();
-    } finally {
-      current = { key: null, unmount: null };
-    }
+  if (routeKey === "fm") {
+    const fmVolcaSelect = routeRoots.fm?.querySelector("#fmVolcaSelect");
+    if (fmVolcaSelect) fmVolcaSelect.value = "fm";
+    return;
   }
 
-  viewRoot.innerHTML = "";
-  const { mount } = features[key];
-  const unmount = await mount(viewRoot);
-  current = { key, unmount: typeof unmount === "function" ? unmount : null };
+  const styleVolcaSelect = routeRoots.style?.querySelector("#volcaSelect");
+  if (!styleVolcaSelect) return;
+  const savedVolca = localStorage.getItem("volca-selected");
+  const targetVolca = savedVolca && savedVolca !== "fm" ? savedVolca : "drum";
+  if (styleVolcaSelect.value !== targetVolca) {
+    styleVolcaSelect.value = targetVolca;
+    styleVolcaSelect.dispatchEvent(new Event("change", { bubbles: true }));
+  }
 }
 
 router.start();
