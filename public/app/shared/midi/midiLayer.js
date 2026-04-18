@@ -43,7 +43,8 @@ export function persistFmMidiSession(state) {
     midiEnabled: state.midiEnabled,
     midiOutputActive: state.midiOutputActive,
     midiOutputId: state.midiOutputId,
-    midiChannel: state.midiChannel
+    midiChannel: state.midiChannel,
+    midiClockEnabled: state.midiClockEnabled
   });
 }
 

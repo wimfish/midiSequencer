@@ -17,7 +17,8 @@ const defaults = {
     midiEnabled: true,
     midiOutputActive: true,
     midiOutputId: "",
-    midiChannel: 1
+    midiChannel: 1,
+    midiClockEnabled: true
   }
 };
 

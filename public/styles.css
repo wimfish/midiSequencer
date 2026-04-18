@@ -5,7 +5,10 @@
 
 /* ── CSS custom properties (dark / default theme) ─────────── */
 :root {
-  --bg:            #0b0d10;
+  /* Achterste pagina-achtergrond (boven → onder); iets donkerder dan #1d170f → #15120c */
+  --page-bg-top:    #161008;
+  --page-bg-bottom: #0c0a06;
+  --bg:             var(--page-bg-bottom);
   --text:          #e7edf4;
   --muted:         #9ba8b8;
   --line:          #2a313a;
@@ -14,6 +17,9 @@
   --accent-2:      #ffd166;
   --danger:        #ff6b6b;
   --glow-line:     rgba(86,211,255,.28);
+  /* Alleen bovenste metalen behuizing: Volca / MIDI / BPM-unit */
+  --panel-brown-top:    #6b5e49;
+  --panel-brown-bottom: #382f21;
   --radius-card:   18px;
   --radius-step:   8px;
 }
@@ -26,7 +32,9 @@
 
 html, body {
   margin: 0; padding: 0;
-  background: var(--bg);
+  min-height: 100vh;
+  background: linear-gradient(180deg, var(--page-bg-top) 0%, var(--page-bg-bottom) 100%);
+  background-color: var(--page-bg-bottom);
   color: var(--text);
   font-family: Inter, Arial, sans-serif;
   width: 100%; max-width: 100%;
@@ -34,14 +42,15 @@ html, body {
 }
 button, select, input { font: inherit; }
 
-body {
-  background:
-    radial-gradient(circle at top, rgba(60,224,182,.08), transparent 34%),
-    linear-gradient(180deg, #0b0d10 0%, #0f1318 100%);
-}
-
 /* ── App shell ─────────────────────────────────────────────── */
-.app-shell { width: min(100%, 1920px); margin: 0 auto; padding: 18px 24px 28px; overflow-x: clip; }
+.app-shell {
+  --app-shell-pad-x: 24px;
+  --app-shell-metal-inset: 6px; /* metalen panelen: afstand tot buitenrand .app-shell */
+  width: min(100%, 1920px);
+  margin: 0 auto;
+  padding: 18px var(--app-shell-pad-x) 28px;
+  overflow-x: clip;
+}
 
 /* ── Card ──────────────────────────────────────────────────── */
 .card {
@@ -52,8 +61,7 @@ body {
   margin-bottom: 12px;
   box-shadow: 0 12px 34px rgba(0,0,0,.20);
 }
-.topbar.card,
-.advanced-panel .card {
+.topbar.card {
   background: linear-gradient(180deg, rgba(17,40,74,.98), rgba(12,28,54,.985));
   border-color: rgba(100,140,196,.22);
   box-shadow: 0 16px 34px rgba(3,8,18,.34);
@@ -68,6 +76,31 @@ body {
   pointer-events: none;
 }
 
+/* Metalen behuizing: Volca-keuze + transport, MIDI-rij, BPM-quickbar (Drum); FM: cluster + performance */
+.advanced-panel .controls.card,
+.advanced-panel .midi.card,
+.advanced-panel .card.fm-control-cluster,
+.control-stack > .quick-bar.card {
+  background:
+    repeating-linear-gradient(180deg, rgba(255,255,255,.05) 0 1px, transparent 1px 4px),
+    linear-gradient(180deg, var(--panel-brown-top) 0%, var(--panel-brown-bottom) 100%);
+  border: 1px solid rgba(48, 42, 34, 0.92);
+  box-shadow: 0 12px 34px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.07);
+}
+/* Breedte tot bijna tegen de rand van .app-shell (rekt mee met --app-shell-pad-x) */
+.app-shell .advanced-panel .controls.card,
+.app-shell .advanced-panel .midi.card,
+.app-shell .advanced-panel .card.fm-control-cluster,
+.app-shell .control-stack > .quick-bar.card,
+.app-shell .card.fm-sequencer-card {
+  position: relative;
+  box-sizing: border-box;
+  margin-left: calc(var(--app-shell-metal-inset) - var(--app-shell-pad-x));
+  margin-right: calc(var(--app-shell-metal-inset) - var(--app-shell-pad-x));
+  width: calc(100% + 2 * (var(--app-shell-pad-x) - var(--app-shell-metal-inset)));
+  max-width: none;
+}
+
 /* ── Topbar ────────────────────────────────────────────────── */
 .topbar { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
 .topbar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
@@ -79,6 +112,150 @@ h1 { margin: 0 0 6px; font-size: 1.45rem; letter-spacing: .02em; }
   border: 1px solid var(--line); white-space: nowrap;
 }
 
+/* FM topbar: geen metalen card-achtergrond; titel cyan; ⚙ + Instellingen */
+.topbar.fm-topbar {
+  align-items: center;
+}
+.topbar.fm-topbar.card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 8px 0 14px;
+  margin-bottom: 0;
+}
+.topbar.fm-topbar.card::after {
+  display: none !important;
+}
+.fm-topbar .fm-topbar-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+/* FM: titel + Instellingen ~100px binnen het kader (niet tegen de bruine rand) */
+body.fm-prototype-page .fm-topbar .fm-topbar-title-row {
+  padding-left: 100px;
+  padding-right: 100px;
+}
+@media (max-width: 1100px) {
+  body.fm-prototype-page .fm-topbar .fm-topbar-title-row {
+    padding-left: clamp(16px, 9vw, 100px);
+    padding-right: clamp(16px, 9vw, 100px);
+  }
+}
+.fm-topbar .fm-topbar-title-row h1 {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35em;
+  font-weight: 700;
+}
+.fm-topbar .fm-topbar-title-row h1 .fm-title-main {
+  color: #3daaa9;
+}
+.fm-topbar .fm-topbar-title-row h1 .fm-title-sub {
+  font-size: 0.7em;
+  color: #807363;
+}
+.fm-settings-toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  width: auto;
+  padding: 8px 14px;
+}
+.fm-settings-gear { font-size: 1.15rem; line-height: 1; }
+.fm-settings-label { font-size: 0.88rem; font-weight: 600; letter-spacing: 0.02em; }
+
+/* FM footer: zelfde titel als topbar, iets kleiner */
+.fm-footer.fm-footer-bar {
+  margin: 0;
+  padding: 14px 18px 20px;
+  text-align: center;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+body.fm-prototype-page .fm-footer-title {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35em;
+  margin: 0;
+  font-size: clamp(0.82rem, 2.2vw, 1.02rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-family: "Agdasima", Inter, Arial, sans-serif;
+}
+body.fm-prototype-page .fm-footer-title .fm-title-main {
+  color: #3daaa9;
+}
+body.fm-prototype-page .fm-footer-title .fm-title-sub {
+  font-size: 0.7em;
+  color: #807363;
+}
+
+/* FM-view: alles onder de titel stapelen; instellingen dicht = piano roll + keyboard schuiven omhoog */
+body.fm-prototype-page #viewRoot {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+}
+body.fm-prototype-page [data-route-root="fm"] {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  flex: 0 0 auto;
+}
+body.fm-prototype-page .app-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+/* FM: ruimte onder instellingenblok alleen als panel zichtbaar — lijn + tussenruimte tot instrument */
+body.fm-prototype-page .control-stack {
+  margin-bottom: 0;
+}
+body.fm-prototype-page .control-stack:not(.control-stack--settings-hidden) {
+  margin-bottom: 10px;
+}
+
+body.theme-80s .topbar.fm-topbar.card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+body.theme-80s .topbar.fm-topbar.card::before,
+body.theme-80s .topbar.fm-topbar.card::after {
+  display: none !important;
+}
+body.theme-pcb .topbar.fm-topbar.card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+body.theme-pcb .topbar.fm-topbar.card::after {
+  display: none !important;
+}
+body.theme-minimal .topbar.fm-topbar.card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+body.theme-minimal .topbar.fm-topbar.card::after {
+  display: none !important;
+}
 /* ── Control stack ─────────────────────────────────────────── */
 .control-stack { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; position: relative; }
 .advanced-panel {
@@ -89,7 +266,190 @@ h1 { margin: 0 0 6px; font-size: 1.45rem; letter-spacing: .02em; }
 .control-stack.compact .advanced-panel { max-height: 0; opacity: 0; transform: translateY(-10px); margin: 0; pointer-events: none; }
 .controls, .midi { display: grid; gap: 10px; align-items: end; }
 .controls { grid-template-columns: repeat(2, minmax(160px,190px)) minmax(320px,1fr); }
+
+/* FM sequencer: één rij Volca | Mode | Steps; transport op de volgende rij (met Volca) */
+.controls.fm-main-controls {
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  align-items: end;
+}
+.controls.fm-main-controls:has(#fmVolcaSelect) .fm-transport-buttons {
+  grid-column: 1 / -1;
+}
 .midi    { grid-template-columns: repeat(4, minmax(140px,170px)) minmax(280px,1fr); }
+
+/* FM MIDI: 5 kolommen — MIDI | Output | Kanaal | Clock | Actief */
+.midi.fm-midi-panel {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(4px, 1vw, 10px);
+  align-items: stretch;
+}
+.midi.fm-midi-panel .field,
+.midi.fm-midi-panel .toggle-field {
+  min-width: 0;
+  grid-column: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.midi.fm-midi-panel .field label,
+.midi.fm-midi-panel .toggle-field > label:first-of-type {
+  font-size: 0.8rem;
+  min-height: 2.4em;
+  display: flex;
+  align-items: flex-end;
+  line-height: 1.2;
+}
+.midi.fm-midi-panel select {
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.midi.fm-midi-panel .switch {
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.midi.fm-midi-panel .switch-ui {
+  width: 40px;
+  height: 22px;
+  flex: 0 0 40px;
+}
+.midi.fm-midi-panel .switch-ui::after {
+  width: 18px;
+  height: 18px;
+  top: 1px;
+  left: 1px;
+}
+.midi.fm-midi-panel .switch input:checked + .switch-ui::after {
+  transform: translateX(18px);
+}
+.midi.fm-midi-panel .switch-text {
+  min-width: 0;
+  flex: 1 1 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  justify-content: flex-end;
+  font-size: 0.75rem;
+}
+
+/* FM: Volca/transport + MIDI in één metalen card; MIDI-blok met titel + kader #807363 */
+.fm-control-cluster {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.fm-control-cluster .controls.fm-main-controls {
+  margin-bottom: 0;
+}
+.fm-midi-cluster {
+  border: 1px solid rgba(0, 0, 0, 0.28);
+  border-radius: 12px;
+  padding: 8px 12px 12px;
+  /* Lichter paneel (#312b20) zodat donkere velden/knoppen contrasteren */
+  background: linear-gradient(
+    180deg,
+    #3a3429 0%,
+    #312b20 45%,
+    #282319 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -10px 18px rgba(0, 0, 0, 0.18);
+}
+.fm-midi-cluster-title {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #3daaa9;
+  text-transform: uppercase;
+}
+
+/* FM performance: BPM | Gate % | Octaaf | Mode-feedback — labels bovenaan; tweede rij gelijk hoog; grote cijfers */
+.controls.fm-performance-controls {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(4px, 1vw, 10px);
+  align-items: stretch;
+}
+body.fm-prototype-page .advanced-panel .controls.fm-performance-controls.card {
+  margin-bottom: 0;
+}
+.controls.fm-performance-controls .field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: flex-start;
+  align-items: stretch;
+  min-width: 0;
+  min-height: 0;
+}
+.controls.fm-performance-controls .field label,
+.controls.fm-performance-controls .fm-mode-feedback-label {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+.controls.fm-performance-controls .field input,
+.controls.fm-performance-controls .field select,
+.controls.fm-performance-controls .fm-mode-feedback {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.controls.fm-performance-controls .field input,
+.controls.fm-performance-controls .field select {
+  padding: 10px 12px;
+  font-size: clamp(1.5rem, 4.8vmin, 2.75rem);
+  line-height: 1.08;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.controls.fm-performance-controls .field select {
+  padding-right: 28px;
+}
+.controls.fm-performance-controls .fm-mode-feedback {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.28);
+  /* Zelfde lichtere tint als .fm-midi-cluster (#312b20) */
+  background: linear-gradient(180deg, #3a3429 0%, #312b20 45%, #282319 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.12);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--text);
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  white-space: normal;
+}
+.advanced-panel .controls.fm-performance-controls .fm-mode-feedback {
+  border-color: rgba(0, 0, 0, 0.28);
+}
+.controls.fm-performance-controls .fm-mode-feedback--step {
+  border-color: rgba(60, 224, 182, 0.45);
+}
+.controls.fm-performance-controls .fm-mode-feedback--live {
+  border-color: rgba(140, 183, 243, 0.45);
+}
+
 .panel-controls-row { margin-top: 14px; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; align-items: stretch; min-width: 0; }
 .panel-range { min-width: 0; }
 .panel-range-top { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; margin-bottom: 8px; }
@@ -110,6 +470,16 @@ h1 { margin: 0 0 6px; font-size: 1.45rem; letter-spacing: .02em; }
   content: ""; position: absolute; left: 18px; right: 18px; top: 0; height: 1px;
   background: linear-gradient(90deg, transparent, rgba(86,211,255,.55), transparent);
   box-shadow: 0 0 18px rgba(86,211,255,.22);
+}
+.control-stack > .quick-bar.card {
+  background:
+    repeating-linear-gradient(180deg, rgba(255,255,255,.05) 0 1px, transparent 1px 4px),
+    linear-gradient(180deg, var(--panel-brown-top) 0%, var(--panel-brown-bottom) 100%);
+  box-shadow: 0 14px 28px rgba(0,0,0,.35), 0 0 0 1px rgba(48, 42, 34, 0.5), inset 0 1px 0 rgba(255,255,255,.06);
+}
+.control-stack > .quick-bar.card::before {
+  background: linear-gradient(90deg, transparent, rgba(220, 180, 130, 0.28), transparent);
+  box-shadow: 0 0 14px rgba(90, 70, 45, 0.25);
 }
 .quick-bar-main {
   display: grid;
@@ -610,7 +980,7 @@ body.theme-80s .step.on::before {
 }
 
 @media (max-width: 720px) {
-  .app-shell { padding: 12px; }
+  .app-shell { --app-shell-pad-x: 12px; padding: 12px; }
   .topbar { flex-direction: column; }
   .topbar-actions { width: 100%; justify-content: space-between; }
   .controls, .midi, .quick-bar-main { grid-template-columns: minmax(0,1fr); }
@@ -671,7 +1041,7 @@ body.theme-80s .step.on::before {
 }
 
 @media (max-width: 480px) {
-  .app-shell { padding: 12px; }
+  .app-shell { --app-shell-pad-x: 12px; padding: 12px; }
   .advanced-panel { max-height: none; }
   .advanced-panel .card { padding-left: 14px; padding-right: 14px; }
   .advanced-panel .midi { gap: 14px; }
@@ -732,25 +1102,30 @@ body.theme-80s {
   --radius-card: 14px; --radius-step: 5px;
   font-family: "Arial Narrow", Arial, Helvetica, sans-serif;
   color: #14110d;
-  background:
-    radial-gradient(circle at 10% 8%, rgba(255,208,135,.12), transparent 18%),
-    radial-gradient(circle at 86% 12%, rgba(255,246,190,.08), transparent 16%),
-    linear-gradient(180deg, #2f1c10 0%, #171008 100%);
-  scrollbar-color: #8b5a2b #3a2412; scrollbar-width: thin;
+  /* Zelfde donkere pagina-gradient als default (was: warme radial + #2f1c10, overschreef html/body) */
+  background: linear-gradient(180deg, var(--page-bg-top) 0%, var(--page-bg-bottom) 100%);
+  background-color: var(--page-bg-bottom);
 }
 body.theme-80s::before {
-  content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .12;
+  content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .06;
   background:
     radial-gradient(circle at 20% 20%, rgba(255,255,255,.18) 0 1px, transparent 2px) 0 0/7px 7px,
     repeating-linear-gradient(0deg, rgba(0,0,0,.08) 0 1px, transparent 1px 4px);
   mix-blend-mode: overlay;
 }
 body.theme-80s .app-shell {
-  position: relative; max-width: 1700px; padding: 18px 20px 30px;
-  border-left: 16px solid #6e4522; border-right: 16px solid #6e4522;
+  --app-shell-pad-x: 20px;
+  /* Frame: buitenrand = oude middelste band; binnenband = zelfde verticale gradient als pagina */
+  --app-shell-frame-inner: 16px;
+  --app-shell-border-outer: rgb(93, 56, 27); /* was #6e4522; gelijk aan vorige middelste rgba(93,56,27) */
+  position: relative; max-width: 1700px; padding: 18px var(--app-shell-pad-x) 30px;
+  border-left: 16px solid var(--app-shell-border-outer);
+  border-right: 16px solid var(--app-shell-border-outer);
   border-top: 2px solid rgba(255,230,190,.18); border-bottom: 2px solid rgba(30,16,7,.8);
   border-radius: 20px;
-  background: linear-gradient(90deg, rgba(63,36,17,.98) 0, rgba(93,56,27,.98) 16px, transparent 16px, transparent calc(100% - 16px), rgba(93,56,27,.98) calc(100% - 16px), rgba(63,36,17,.98) 100%);
+  background:
+    linear-gradient(180deg, var(--page-bg-top) 0%, var(--page-bg-bottom) 100%) left top / var(--app-shell-frame-inner) 100% no-repeat,
+    linear-gradient(180deg, var(--page-bg-top) 0%, var(--page-bg-bottom) 100%) right top / var(--app-shell-frame-inner) 100% no-repeat;
   box-shadow: 0 34px 70px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,225,185,.05);
 }
 body.theme-80s .card,
@@ -800,6 +1175,11 @@ body.theme-80s select, body.theme-80s input, body.theme-80s button, body.theme-8
 }
 body.theme-80s select, body.theme-80s input { font-weight: 700; }
 body.theme-80s button { position: relative; text-transform: uppercase; letter-spacing: .04em; border-radius: 8px; }
+/* FM live keyboard: zwarte toetsen moeten absoluut blijven (anders verdwijnen ze in de rij met height:0) */
+body.theme-80s .piano-key.black {
+  position: absolute;
+  top: 0;
+}
 body.theme-80s button:active { transform: translateY(2px); box-shadow: inset 0 2px 5px rgba(0,0,0,.36), 0 1px 0 rgba(40,29,17,.6); }
 body.theme-80s button.secondary { background: linear-gradient(180deg, #433830, #191613); }
 body.theme-80s button.accent, body.theme-80s #playBtn {
@@ -811,8 +1191,10 @@ body.theme-80s .switch-ui { background: #2a241f; border-color: #51493f; }
 body.theme-80s .switch-ui::after { background: #cdb99a; }
 body.theme-80s .switch input:checked + .switch-ui { background: #153a31; border-color: #1f7d68; }
 body.theme-80s .switch input:checked + .switch-ui::after { background: #64ffd5; }
-body.theme-80s .bpm-field input {
-  text-align: center; font-size: 1.8rem; letter-spacing: .08em; color: #71ffd3;
+body.theme-80s .bpm-field input,
+body.theme-80s .controls.fm-performance-controls .field input,
+body.theme-80s .controls.fm-performance-controls .field select {
+  text-align: center; font-size: clamp(1.5rem, 4.8vmin, 2.75rem); letter-spacing: .08em; color: #71ffd3;
   background: radial-gradient(circle at 50% 50%, rgba(70,255,210,.08), rgba(0,0,0,.2) 65%), linear-gradient(180deg, #0f1411, #070807);
   border-color: #34352f; text-shadow: 0 0 10px rgba(88,255,220,.45); font-family: "Courier New", monospace;
 }
@@ -1017,14 +1399,47 @@ body.theme-80s .tracks.has-active-track .track:not(.active):not(.is-active) {
   filter: saturate(.74) brightness(.84) !important;
 }
 
-body.theme-80s, body.theme-80s * { scrollbar-color: #8b5a2b #3a2412; scrollbar-width: thin; }
-body.theme-80s ::-webkit-scrollbar { width: 10px; height: 10px; }
-body.theme-80s ::-webkit-scrollbar-track  { background: linear-gradient(180deg, #4a2d16, #2b190c); }
-body.theme-80s ::-webkit-scrollbar-thumb  { background: linear-gradient(180deg, #8b5a2b, #5a3a1c); border-radius: 6px; border: 1px solid #2a1a0c; }
-body.theme-80s ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #a86b34, #6b4420); }
+/* Scrollbars: mee met donkere pagina; dunner en minder fel dan browser-grijs / oranje-bruin */
+body.theme-80s,
+body.theme-80s * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(72, 64, 54, 0.92) rgba(10, 9, 7, 0.97);
+}
+html:has(body.theme-80s) {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(72, 64, 54, 0.92) rgba(10, 9, 7, 0.97);
+}
+html:has(body.theme-80s)::-webkit-scrollbar,
+body.theme-80s::-webkit-scrollbar,
+body.theme-80s *::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+html:has(body.theme-80s)::-webkit-scrollbar-track,
+body.theme-80s::-webkit-scrollbar-track,
+body.theme-80s *::-webkit-scrollbar-track {
+  background: rgba(10, 9, 7, 0.98);
+}
+html:has(body.theme-80s)::-webkit-scrollbar-thumb,
+body.theme-80s::-webkit-scrollbar-thumb,
+body.theme-80s *::-webkit-scrollbar-thumb {
+  background: rgba(68, 60, 48, 0.88);
+  border-radius: 5px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+}
+html:has(body.theme-80s)::-webkit-scrollbar-thumb:hover,
+body.theme-80s::-webkit-scrollbar-thumb:hover,
+body.theme-80s *::-webkit-scrollbar-thumb:hover {
+  background: rgba(88, 78, 62, 0.95);
+}
 
 @media (max-width: 767px) {
-  body.theme-80s .app-shell { border-left-width: 6px; border-right-width: 6px; padding-left: 10px; padding-right: 10px; }
+  body.theme-80s .app-shell {
+    --app-shell-pad-x: 10px;
+    --app-shell-frame-inner: 12px;
+    border-left-width: 6px; border-right-width: 6px;
+    padding-left: var(--app-shell-pad-x); padding-right: var(--app-shell-pad-x);
+  }
   body.theme-80s .track { border-radius: 12px; }
   body.theme-80s .track:nth-child(odd), body.theme-80s .track:nth-child(even) { transform: none; }
   body.theme-80s .step-grid { gap: 8px 4px; }
@@ -1075,7 +1490,11 @@ body.theme-pcb .card, body.theme-pcb .track {
   border: 1px solid #1a4020; border-radius: var(--radius-card);
   box-shadow: 0 0 0 1px rgba(0,200,80,.06), inset 0 0 24px rgba(0,0,0,.5);
 }
-body.theme-pcb .topbar.card, body.theme-pcb .advanced-panel .card { background: linear-gradient(180deg, #0d1f0d, #081408); border-color: #1a4020; }
+body.theme-pcb .topbar.card,
+body.theme-pcb .advanced-panel .controls.card,
+body.theme-pcb .advanced-panel .midi.card,
+body.theme-pcb .advanced-panel .card.fm-control-cluster,
+body.theme-pcb .control-stack > .quick-bar.card { background: linear-gradient(180deg, #0d1f0d, #081408); border-color: #1a4020; }
 body.theme-pcb .topbar.card::after, body.theme-pcb .advanced-panel::after { background: linear-gradient(90deg, transparent, rgba(0,255,136,.2), transparent); box-shadow: none; }
 body.theme-pcb .quick-bar { background: rgba(7,20,7,.95); box-shadow: 0 0 0 1px rgba(0,200,80,.1); }
 body.theme-pcb .quick-bar::before { background: linear-gradient(90deg, transparent, rgba(0,255,136,.3), transparent); box-shadow: none; }
@@ -1091,7 +1510,12 @@ body.theme-pcb .switch-ui { background: #030c03; border-color: #184018; }
 body.theme-pcb .switch-ui::after { background: #2a5a2a; }
 body.theme-pcb .switch input:checked + .switch-ui { background: #052510; border-color: #00a040; }
 body.theme-pcb .switch input:checked + .switch-ui::after { background: #00ff88; box-shadow: 0 0 6px rgba(0,255,136,.6); }
-body.theme-pcb .bpm-field input { color: #00ff88; font-size: 1.8rem; text-align: center; letter-spacing: .1em; text-shadow: 0 0 12px rgba(0,255,136,.5); background: #020902; }
+body.theme-pcb .bpm-field input,
+body.theme-pcb .controls.fm-performance-controls .field input,
+body.theme-pcb .controls.fm-performance-controls .field select {
+  color: #00ff88; font-size: clamp(1.5rem, 4.8vmin, 2.75rem); text-align: center; letter-spacing: .1em;
+  text-shadow: 0 0 12px rgba(0,255,136,.5); background: #020902;
+}
 body.theme-pcb .track { border-radius: 2px; }
 body.theme-pcb .track-name { color: #00ff88; text-transform: uppercase; letter-spacing: .06em; text-shadow: 0 0 6px rgba(0,255,136,.3); }
 body.theme-pcb .track-index { background: #020902; color: #ffe000; border: 1px solid #183818; border-radius: 2px; text-shadow: 0 0 6px rgba(255,224,0,.4); }
@@ -1130,7 +1554,11 @@ body.theme-minimal {
   color: #1a1a1a; background: #f5f5f0;
 }
 body.theme-minimal .card, body.theme-minimal .track { background: #fff; border: 1px solid #ddd; border-radius: var(--radius-card); box-shadow: 0 2px 8px rgba(0,0,0,.06); }
-body.theme-minimal .topbar.card, body.theme-minimal .advanced-panel .card { background: #fafaf8; }
+body.theme-minimal .topbar.card,
+body.theme-minimal .advanced-panel .controls.card,
+body.theme-minimal .advanced-panel .midi.card,
+body.theme-minimal .advanced-panel .card.fm-control-cluster,
+body.theme-minimal .control-stack > .quick-bar.card { background: #fafaf8; }
 body.theme-minimal .topbar.card::after, body.theme-minimal .advanced-panel::after { background: linear-gradient(90deg, transparent, #ddd, transparent); box-shadow: none; }
 body.theme-minimal .quick-bar { background: rgba(255,255,255,.96); box-shadow: 0 2px 12px rgba(0,0,0,.08); }
 body.theme-minimal .quick-bar::before { background: linear-gradient(90deg, transparent, #1a1aff, transparent); box-shadow: none; }
@@ -1152,7 +1580,11 @@ body.theme-minimal .switch-ui::after { background: #fff; box-shadow: 0 1px 3px r
 body.theme-minimal .switch input:checked + .switch-ui { background: #1a1aff; border-color: #0000cc; }
 body.theme-minimal .switch input:checked + .switch-ui::after { background: #fff; }
 body.theme-minimal .switch input:checked + .switch-ui + .switch-text { color: #1a1aff; }
-body.theme-minimal .bpm-field input { text-align: center; font-size: 1.8rem; font-weight: 300; letter-spacing: .04em; background: #1a1a1a; color: #fff; }
+body.theme-minimal .bpm-field input,
+body.theme-minimal .controls.fm-performance-controls .field input,
+body.theme-minimal .controls.fm-performance-controls .field select {
+  text-align: center; font-size: clamp(1.5rem, 4.8vmin, 2.75rem); font-weight: 300; letter-spacing: .04em; background: #1a1a1a; color: #fff;
+}
 body.theme-minimal .track { border: 1px solid #ddd; }
 body.theme-minimal .track.active { outline: 2px solid #1a1aff; box-shadow: 0 0 0 4px rgba(26,26,255,.06); }
 body.theme-minimal .track-name { color: #1a1a1a; font-weight: 700; }
@@ -1174,3 +1606,24 @@ body.theme-minimal ::-webkit-scrollbar { width: 6px; height: 6px; }
 body.theme-minimal ::-webkit-scrollbar-track  { background: #f5f5f0; }
 body.theme-minimal ::-webkit-scrollbar-thumb  { background: #ccc; border-radius: 3px; }
 body.theme-minimal ::-webkit-scrollbar-thumb:hover { background: #aaa; }
+
+/* FM MIDI-cluster: velden + toggles — #12110e met gradient (na thema’s, overschrijft theme) */
+.advanced-panel .fm-midi-cluster select,
+.advanced-panel .fm-midi-cluster input:not([type="checkbox"]):not([type="radio"]),
+.advanced-panel .fm-midi-cluster button,
+.advanced-panel .fm-midi-cluster .switch {
+  background: linear-gradient(180deg, #1c1a14 0%, #12110e 45%, #0a0907 100%);
+  border-color: rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  color: #e8e4df;
+  border-radius: 12px;
+  font-family: inherit;
+}
+.advanced-panel .fm-midi-cluster .switch:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.advanced-panel .fm-midi-cluster .switch-ui {
+  background: linear-gradient(180deg, #141310 0%, #0c0b09 100%);
+  border-color: rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}

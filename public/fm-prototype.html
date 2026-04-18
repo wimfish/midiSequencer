@@ -9,87 +9,84 @@
 </head>
 <body class="theme-80s fm-prototype-page">
   <div class="app-shell">
-    <header class="topbar card">
-      <div class="fm-hero-main">
-        <h1>VOLCA FM SEQUENCER</h1>
-        <p class="sub fm-sub">
-          Twee modi: <strong>Step</strong> en <strong>Live</strong>. In Step programmeer je noten per step
-          (max 3 per kolom). In Live speel je melodisch via toetsenbord of piano.
-        </p>
-      </div>
-
-      <div class="topbar-actions">
+    <header class="topbar card fm-topbar">
+      <div class="fm-topbar-title-row">
+        <h1>
+          <span class="fm-title-main">VOLCA FM</span>
+          <span class="fm-title-sub">SEQUENCER</span>
+        </h1>
         <button
           id="toggleSettingsBtn"
-          class="secondary settings-toggle-btn"
+          class="secondary fm-settings-toggle"
           type="button"
           aria-expanded="true"
+          aria-label="Instellingen verbergen"
         >
-          ▲ INSTELLINGEN OMHOOG
+          <span class="fm-settings-gear" aria-hidden="true">⚙</span>
+          <span class="fm-settings-label">Instellingen</span>
         </button>
-
-        <div class="status" id="statusDisplay">FM PATTERN KLAAR</div>
       </div>
     </header>
 
     <section id="controlStack" class="control-stack">
       <div id="advancedPanel" class="advanced-panel">
-        <section class="controls card fm-main-controls">
-          <div class="field">
-            <label for="modeSelect">Mode</label>
-            <select id="modeSelect">
-              <option value="step" selected>Step</option>
-              <option value="live">Live</option>
-            </select>
+        <section class="card fm-control-cluster" aria-label="Transport en MIDI">
+          <div class="controls fm-main-controls">
+            <div class="field">
+              <label for="modeSelect">Mode</label>
+              <select id="modeSelect">
+                <option value="step" selected>Step</option>
+                <option value="live">Live</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="stepCountSelect">Steps</label>
+              <select id="stepCountSelect">
+                <option value="8">8</option>
+                <option value="16" selected>16</option>
+                <option value="32">32</option>
+              </select>
+            </div>
+
+            <div class="buttons-wrap buttons-wrap-wide fm-transport-buttons">
+              <button id="playBtn" type="button">PLAY</button>
+              <button id="stopBtn" type="button">STOP</button>
+              <button id="clearBtn" type="button">CLEAR</button>
+              <button id="saveBtn" type="button">SAVE</button>
+              <button id="loadBtn" type="button">LOAD</button>
+            </div>
           </div>
 
-          <div class="field">
-            <label for="stepCountSelect">Steps</label>
-            <select id="stepCountSelect">
-              <option value="8">8</option>
-              <option value="16" selected>16</option>
-              <option value="32">32</option>
-            </select>
-          </div>
+          <div class="fm-midi-cluster">
+            <h2 class="fm-midi-cluster-title">MIDI CONTROL</h2>
+            <div class="midi fm-midi-panel">
+              <div class="toggle-field">
+                <label for="midiEnable">MIDI</label>
+                <label class="switch" for="midiEnable">
+                  <input id="midiEnable" type="checkbox" checked />
+                  <span class="switch-ui"></span>
+                  <span class="switch-text">
+                    <span class="switch-on">Aan</span>
+                    <span class="switch-off">Uit</span>
+                  </span>
+                </label>
+              </div>
 
-          <div class="buttons-wrap buttons-wrap-wide fm-transport-buttons">
-            <button id="playBtn" type="button">PLAY</button>
-            <button id="stopBtn" type="button">STOP</button>
-            <button id="clearBtn" type="button">CLEAR</button>
-            <button id="saveBtn" type="button">SAVE</button>
-            <button id="loadBtn" type="button">LOAD</button>
+              <div class="field">
+                <label for="midiOutputSelect">Output</label>
+                <select id="midiOutputSelect">
+                  <option value="">Geen output</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="midiChannelSelect">Kanaal</label>
+                <select id="midiChannelSelect"></select>
+              </div>
+            </div>
           </div>
         </section>
-
-		<section class="midi card fm-midi-panel">
-		  <div class="toggle-field">
-			<label for="midiEnable">MIDI</label>
-			<label class="switch" for="midiEnable">
-			  <input id="midiEnable" type="checkbox" checked />
-			  <span class="switch-ui"></span>
-			  <span class="switch-text">
-				<span class="switch-on">Aan</span>
-				<span class="switch-off">Uit</span>
-			  </span>
-			</label>
-		  </div>
-
-		  <div class="field">
-			<label for="midiOutputSelect">Output</label>
-			<select id="midiOutputSelect">
-			  <option value="">Geen output</option>
-			</select>
-		  </div>
-
-		  <div class="field">
-			<label for="midiChannelSelect">Kanaal</label>
-			<select id="midiChannelSelect"></select>
-		  </div>
-
-		  <div class="midi-hint" id="modeHint">
-			Step mode: klik noten in het grid of op de piano om steps op te bouwen.
-		  </div>
-		</section>
 
 		<section class="controls card fm-performance-controls">
 		  <div class="field bpm-field">
@@ -110,20 +107,22 @@
 			  <option value="12">+1</option>
 			</select>
 		  </div>
+
+		  <div class="field fm-mode-feedback-field">
+			<label class="fm-mode-feedback-label">Mode</label>
+			<div class="fm-mode-feedback fm-mode-feedback--step" id="fmModeFeedback" role="status">
+			  Step mode — programmeer noten per step in het grid of op de piano.
+			</div>
+		  </div>
 		</section>
       </div>
     </section>
 
-    <section class="quick-bar card fm-status-panel">
-      <div class="quick-bar-main fm-status-main">
-        <div class="status" id="statusText">Klaar</div>
-        <div class="fm-cursor-box" id="cursorInfo">Step 1 · cursor C4 · leeg</div>
-        <div class="fm-live-help">Live Keyboard · Z–M en Q–U · of klik op de piano</div>
-      </div>
-    </section>
-
 	<section class="card fm-sequencer-card fm-sequencer-card--hardware">
-	  <div class="fm-section-title">Piano Roll</div>
+	  <div class="fm-section-title fm-piano-roll-title">
+        <span class="fm-title-main">Piano Roll</span>
+        <span class="fm-title-sub">SEQUENCER</span>
+      </div>
 
 	  <div class="fm-sequencer-inner fm-roll-frame">
 		<div class="fm-roll-surface">
@@ -143,16 +142,30 @@
 	  </div>
 	</section>
 
-    <section class="card fm-piano-card">
-      <div class="fm-section-title">Live Keyboard</div>
+    <section class="card fm-sequencer-card fm-sequencer-card--hardware">
+      <div class="fm-section-title fm-piano-roll-title">
+        <span class="fm-title-main">Live Keyboard</span>
+        <span class="fm-title-sub">LIVE</span>
+      </div>
 
-      <div class="fm-piano-shell">
-        <div class="piano-stage">
-          <div class="piano-row piano-row-white" id="pianoWhiteKeys"></div>
-          <div class="piano-row piano-row-black" id="pianoBlackKeys"></div>
+      <div class="fm-sequencer-inner fm-roll-frame">
+        <div class="fm-roll-surface">
+          <div class="fm-piano-shell">
+            <div class="piano-stage">
+              <div class="piano-row piano-row-white" id="pianoWhiteKeys"></div>
+              <div class="piano-row piano-row-black" id="pianoBlackKeys"></div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
+
+    <footer class="fm-footer fm-footer-bar" aria-label="Footer">
+      <div class="fm-footer-title">
+        <span class="fm-title-main">VOLCA FM</span>
+        <span class="fm-title-sub">SEQUENCER</span>
+      </div>
+    </footer>
   </div>
 
   <script src="fm-prototype.js"></script>

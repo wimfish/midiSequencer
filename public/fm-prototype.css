@@ -20,6 +20,8 @@
   --fm-white-key-gap: 2px;
 
   --fm-line: rgba(115,87,51,0.30);
+  /* Zelfde accent als titel VOLCA FM */
+  --fm-accent: #3daaa9;
 }
 
 /* =========================================
@@ -51,14 +53,18 @@ body.fm-prototype-page input {
 
 .fm-transport-buttons {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(4px, 1.2vw, 10px);
   width: 100%;
+  min-width: 0;
   grid-column: 1 / -1;
 }
 
 .fm-transport-buttons button {
   width: 100%;
+  min-width: 0;
+  padding-inline: clamp(4px, 1vw, 12px);
+  font-size: clamp(0.7rem, 1.5vw + 0.45rem, 0.95rem);
 }
 
 /* =========================================
@@ -91,16 +97,52 @@ body.fm-prototype-page input {
    SEQUENCER CARD
 ========================================= */
 
+/* Zelfde bruine metalen behuizing als panelen boven (Volca / MIDI) */
 body.fm-prototype-page .fm-sequencer-card {
-  overflow: hidden;
+  overflow: visible;
   padding: 12px 30px 18px;
-  margin: 20px 0px 10px;
+  /* Geen top-marge: afstand tot BPM-blok = alleen de 1px cyan lijn (.advanced-panel::after) + rand piano roll */
+  margin: 0 0px 10px;
+  background:
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 4px),
+    linear-gradient(180deg, #6b5e49 0%, #382f21 100%);
+  border: 1px solid rgba(48, 42, 34, 0.92);
+  box-shadow:
+    0 12px 34px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+body.fm-prototype-page .fm-sequencer-card + .fm-sequencer-card {
+  margin-top: 10px;
+}
+
+/* Theme-80s: hoekschroeven staan op .card::after (styles.css); overlay op ::before */
+body.fm-prototype-page .fm-sequencer-card::before {
+  display: none !important;
 }
 
 body.fm-prototype-page .fm-sequencer-card .fm-section-title {
   width: 100%;
   text-align: left;
   margin-bottom: 10px;
+}
+
+/* Zelfde titel-opbouw als VOLCA FM / SEQUENCER */
+body.fm-prototype-page .fm-piano-roll-title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35em;
+  margin-bottom: 10px;
+  font-weight: 700;
+  font-size: 1.28rem;
+  letter-spacing: 0.02em;
+}
+body.fm-prototype-page .fm-piano-roll-title .fm-title-main {
+  color: #3daaa9;
+}
+body.fm-prototype-page .fm-piano-roll-title .fm-title-sub {
+  font-size: 0.7em;
+  color: #807363;
 }
 
 body.fm-prototype-page .fm-roll-frame {
@@ -114,27 +156,16 @@ body.fm-prototype-page .fm-roll-frame {
    PCB SURFACE
 ========================================= */
 
+/* Bruine buitenrand (panel-tint); vlak #272218 */
 body.fm-prototype-page .fm-roll-surface {
   position: relative;
-  padding: 18px 18px 22px;
+  padding: 18px 18px 26px;
   border-radius: 18px;
-  border: 1px solid rgba(84, 58, 16, 0.92);
-  background:
-    linear-gradient(90deg,
-      rgba(58, 39, 10, 0.95) 0 2px,
-      rgba(187, 149, 56, 0.28) 2px 4px,
-      transparent 4px 54px
-    ),
-    linear-gradient(180deg,
-      rgba(255,255,255,0.10) 0%,
-      rgba(255,255,255,0.02) 18%,
-      rgba(0,0,0,0.10) 100%
-    ),
-    linear-gradient(180deg, #b89434 0%, #9b7723 52%, #7d5d18 100%);
+  border: 1px solid rgba(107, 94, 73, 0.95);
+  background: linear-gradient(180deg, #2c2620 0%, #272218 42%, #211c17 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.18),
-    inset 0 -18px 22px rgba(0,0,0,0.12),
-    0 10px 30px rgba(0,0,0,0.18);
+    0 12px 34px rgba(0,0,0,.35),
+    inset 0 1px 0 rgba(255,255,255,.05);
 }
 
 body.fm-prototype-page .fm-roll-surface::before {
@@ -144,9 +175,9 @@ body.fm-prototype-page .fm-roll-surface::before {
   border-radius: inherit;
   pointer-events: none;
   background:
-    radial-gradient(circle at 18% 22%, rgba(255,255,255,0.10), transparent 20%),
-    radial-gradient(circle at 78% 62%, rgba(255,255,255,0.05), transparent 22%);
-  opacity: 0.9;
+    radial-gradient(circle at 18% 18%, rgba(255,255,255,0.04), transparent 24%),
+    radial-gradient(circle at 78% 65%, rgba(255,255,255,0.02), transparent 26%);
+  opacity: 0.7;
 }
 
 /* =========================================
@@ -162,6 +193,7 @@ body.fm-prototype-page .fm-roll-header {
   gap: 10px;
   align-items: end;
   margin-bottom: 10px;
+  padding-top: 10px;
   position: relative;
   z-index: 1;
 }
@@ -200,6 +232,9 @@ body.fm-prototype-page .step-head {
   align-items: center;
   gap: 5px;
   min-width: 0;
+  position: relative;
+  cursor: pointer;
+  user-select: none;
 }
 
 body.fm-prototype-page .step-led {
@@ -217,65 +252,73 @@ body.fm-prototype-page .step-led {
 }
 
 body.fm-prototype-page .step-head.has-data .step-led {
-  background: radial-gradient(circle at 35% 35%, #aef0ff 0%, #4aa8ff 42%, #0a3d91 100%);
+  background: radial-gradient(circle at 35% 35%, #b8f0ec 0%, var(--fm-accent) 42%, #1a6b66 100%);
   box-shadow:
-    0 0 6px rgba(70,150,255,0.65),
-    0 0 14px rgba(70,150,255,0.28);
+    0 0 6px rgba(61, 170, 169, 0.55),
+    0 0 14px rgba(61, 170, 169, 0.28);
 }
 
 body.fm-prototype-page .step-head.current .step-led {
   transform: scale(1.15);
-  background: radial-gradient(circle at 35% 35%, #eef9ff 0%, #8fd3ff 20%, #35a1ff 45%, #1257c4 100%);
+  background: radial-gradient(circle at 35% 35%, #e8fffc 0%, #7fd9d4 22%, var(--fm-accent) 45%, #1f6f6a 100%);
   box-shadow:
-    0 0 8px rgba(87,178,255,0.95),
-    0 0 18px rgba(87,178,255,0.55),
-    0 0 28px rgba(87,178,255,0.28);
+    0 0 8px rgba(61, 170, 169, 0.9),
+    0 0 18px rgba(61, 170, 169, 0.5),
+    0 0 26px rgba(61, 170, 169, 0.28);
 }
 
-body.fm-prototype-page .step-head-btn {
+/* Stapnummers: platte tekst (geen knop-chrome) */
+body.fm-prototype-page .step-head-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  height: var(--fm-row-height);
-  border-radius: 8px;
-  border: 1px solid rgba(74,61,47,0.9);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02) 30%, rgba(0,0,0,0.16)),
-    linear-gradient(180deg, #2b241f 0%, #12100e 100%);
-  color: #f1eadf;
-  font-size: clamp(0.65rem, 1.8cqi, 1rem);
+  min-height: var(--fm-row-height);
+  margin: 0;
+  padding: 0 2px;
+  border: none;
+  background: transparent;
+  color: rgba(232, 226, 216, 0.88);
+  font-size: clamp(0.7rem, 1.9cqi, 1.05rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
   white-space: nowrap;
-  overflow: hidden;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    0 2px 4px rgba(0,0,0,0.28);
-  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+  transition: color 120ms ease, text-shadow 120ms ease, transform 120ms ease;
 }
 
-body.fm-prototype-page .step-head.has-data .step-head-btn {
-  border-color: rgba(92,154,255,0.82);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.10),
-    0 0 0 1px rgba(92,154,255,0.16);
+body.fm-prototype-page .step-head.has-data .step-head-num {
+  color: rgba(120, 220, 214, 0.95);
+  text-shadow: 0 0 8px rgba(61, 170, 169, 0.35);
 }
 
-body.fm-prototype-page .step-head.cursor .step-head-btn {
-  border-color: #f0d08a;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.12),
-    0 0 0 2px rgba(240,208,138,0.22);
+body.fm-prototype-page .step-head.cursor .step-head-num {
+  color: #f0d08a;
+  text-shadow: 0 0 6px rgba(240, 208, 138, 0.35);
 }
 
-body.fm-prototype-page .step-head.current .step-head-btn {
-  border-color: #7fc0ff;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06) 28%, rgba(0,0,0,0.10)),
-    linear-gradient(180deg, #3c67a8 0%, #18345f 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.16),
-    0 0 0 1px rgba(127,192,255,0.22),
-    0 0 12px rgba(87,178,255,0.30),
-    0 2px 6px rgba(0,0,0,0.30);
+body.fm-prototype-page .step-head.current .step-head-num {
+  color: var(--fm-accent);
+  text-shadow:
+    0 0 10px rgba(61, 170, 169, 0.55),
+    0 0 18px rgba(61, 170, 169, 0.25);
   transform: translateY(-1px);
+}
+
+/* Playhead: puntje boven de kolom (zelfde kleur als titel) */
+body.fm-prototype-page .step-head.current::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -9px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid var(--fm-accent);
+  filter: drop-shadow(0 0 4px rgba(61, 170, 169, 0.55));
+  z-index: 2;
 }
 
 /* =========================================
@@ -416,13 +459,53 @@ body.fm-prototype-page .cell.has-note::after {
 
 body.fm-prototype-page .cell.cursor {
   outline: none;
-  border-color: #5fbdb5;
+  border-color: rgba(61, 170, 169, 0.55);
   box-shadow:
-    inset 0 0 0 1px rgba(212,255,250,.28),
-    0 0 12px rgba(75,255,227,.20),
-    0 0 24px rgba(34,209,188,.16),
-    0 2px 0 rgba(35,83,78,.85),
+    inset 0 0 0 1px rgba(61, 170, 169, 0.22),
+    0 0 10px rgba(61, 170, 169, 0.18),
+    0 2px 0 rgba(26, 70, 68, 0.75),
     0 4px 10px rgba(0,0,0,.35);
+}
+
+/* Playhead-kolom tijdens afspelen: verticale rand + puntje onderaan (kleur = titel VOLCA FM) */
+body.fm-prototype-page .cell.current-step {
+  z-index: 1;
+  box-shadow:
+    inset 2px 0 0 rgba(61, 170, 169, 0.92),
+    inset -2px 0 0 rgba(61, 170, 169, 0.92),
+    inset 0 1px 0 rgba(255,255,255,.08),
+    inset 0 -5px 7px rgba(0,0,0,.72),
+    0 0 0 1px rgba(61, 170, 169, 0.2),
+    0 2px 0 rgba(0,0,0,.96),
+    0 4px 6px rgba(0,0,0,.32);
+}
+
+body.fm-prototype-page .cell.current-step.has-note {
+  box-shadow:
+    inset 2px 0 0 rgba(61, 170, 169, 0.92),
+    inset -2px 0 0 rgba(61, 170, 169, 0.92),
+    inset 0 1px 0 rgba(255,255,255,.08),
+    inset 0 -5px 7px rgba(0,0,0,.72),
+    0 0 0 1px rgba(93,85,73,.24),
+    0 2px 0 rgba(0,0,0,.96),
+    0 4px 6px rgba(0,0,0,.34);
+}
+
+/* Onderste puntje: ::before (cel gebruikt ::after voor de dot) */
+body.fm-prototype-page .grid .grid-row:last-child .cell.current-step::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -9px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 8px solid var(--fm-accent);
+  filter: drop-shadow(0 0 4px rgba(61, 170, 169, 0.45));
+  pointer-events: none;
+  z-index: 3;
 }
 
 body.fm-prototype-page .cell.flash-denied {
@@ -446,6 +529,16 @@ body.fm-prototype-page .cell.flash-denied {
   border: 1px solid rgba(88,73,57,0.85);
   background: linear-gradient(180deg, rgba(116,77,30,.96), rgba(76,48,17,.98));
   overflow: hidden;
+}
+
+/* Zelfde bruine buitenkader als piano roll: binnen fm-roll-surface geen tweede rand */
+body.fm-prototype-page .fm-roll-surface .fm-piano-shell {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  /* Altijd ruime ruimte onder de toetsen; onderkant volgt schaal via negatieve marge op .piano-stage */
+  padding: 12px 12px 42px;
 }
 
 .piano-stage {
@@ -481,6 +574,19 @@ body.fm-prototype-page .cell.flash-denied {
   justify-content: flex-end;
   gap: 6px;
   padding-bottom: 10px;
+}
+
+/* Buitenste witte toetsen: bovenhoeken aan de buitenkant licht afgerond */
+.piano-row-white .piano-key.white:first-child {
+  border-radius: 10px 0 10px 10px;
+}
+
+.piano-row-white .piano-key.white:last-child {
+  border-radius: 0 10px 10px 10px;
+}
+
+.piano-row-white .piano-key.white:first-child:last-child {
+  border-radius: 10px 10px 10px 10px;
 }
 
 .piano-key.white:last-child {
@@ -554,10 +660,6 @@ body.fm-prototype-page .cell.flash-denied {
     --fm-black-key-height: 84px;
   }
 
-  .fm-transport-buttons {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
   .fm-status-main {
     grid-template-columns: 1fr;
   }
@@ -576,10 +678,6 @@ body.fm-prototype-page .cell.flash-denied {
     --fm-white-key-height: 128px;
     --fm-black-key-width: 28px;
     --fm-black-key-height: 74px;
-  }
-
-  .fm-transport-buttons {
-    grid-template-columns: repeat(2, 1fr);
   }
 
   body.fm-prototype-page .note-label {

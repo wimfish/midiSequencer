@@ -74,6 +74,8 @@ const MIDI_TO_KEY = Object.fromEntries(KEYBOARD_MAP.map((item) => [item.midi, it
 const STORAGE_KEY = "volca-fm-prototype-v10";
 const MAX_NOTES_PER_STEP = 3;
 
+let fmFeedbackFlashTimer = null;
+
 const state = {
   mode: "step",
   steps: 16,
@@ -109,27 +111,27 @@ const els = {
   stepCountSelect: document.getElementById("stepCountSelect"),
   gateInput: document.getElementById("gateInput"),
   octaveShift: document.getElementById("octaveShift"),
+  fmModeFeedback: document.getElementById("fmModeFeedback"),
   midiEnable: document.getElementById("midiEnable"),
   midiOutputSelect: document.getElementById("midiOutputSelect"),
   midiChannelSelect: document.getElementById("midiChannelSelect"),
   statusText: document.getElementById("statusText"),
   cursorInfo: document.getElementById("cursorInfo"),
-  statusDisplay: document.getElementById("statusDisplay"),
   gridHeader: document.getElementById("gridHeader"),
   noteLabels: document.getElementById("noteLabels"),
   grid: document.getElementById("grid"),
-  modeHint: document.getElementById("modeHint"),
   pianoWhiteKeys: document.getElementById("pianoWhiteKeys"),
   pianoBlackKeys: document.getElementById("pianoBlackKeys"),
-  settingsPanel: document.getElementById("settingsPanel")
+  settingsPanel: document.getElementById("advancedPanel"),
+  controlStack: document.getElementById("controlStack")
 };
 
 function setStatus(text) {
-  els.statusText.textContent = text;
+  if (els.statusText) els.statusText.textContent = text;
 }
 
 function setDisplay(text) {
-  els.statusDisplay.textContent = text;
+  if (els.statusText) els.statusText.textContent = text;
 }
 
 function clamp(value, min, max) {
@@ -246,22 +248,36 @@ function resizePattern(nextSteps) {
 }
 
 function updateCursorInfo() {
+  if (!els.cursorInfo) return;
   const notes = getStepNotes(state.cursorStep);
   const cursorNote = noteNameFromMidi(getCursorMidi());
   els.cursorInfo.textContent =
     `Step ${state.cursorStep + 1} · cursor ${cursorNote} · ${notes.length ? notes.map(noteNameFromMidi).join(" / ") : "leeg"}`;
 }
 
-function updateModeHint() {
-  els.modeHint.textContent =
-    state.mode === "step"
-      ? "Step mode: klik noten in het grid of op de piano om steps op te bouwen."
-      : "Live mode: toetsen spelen alleen live noten en wijzigen de sequencer niet.";
-}
-
 function applyModeClass() {
   document.body.classList.toggle("mode-step", state.mode === "step");
   document.body.classList.toggle("mode-live", state.mode === "live");
+}
+
+function updateModeFeedback() {
+  if (!els.fmModeFeedback) return;
+  const isStep = state.mode === "step";
+  els.fmModeFeedback.textContent = isStep
+    ? "Step mode — programmeer noten per step in het grid of op de piano. Boven/onder in de roll: ↑/↓ wisselt het octaaf (zelfde als het menu Octaaf)."
+    : "Live mode — live spelen; het patroon wordt niet gewijzigd.";
+  els.fmModeFeedback.classList.toggle("fm-mode-feedback--step", isStep);
+  els.fmModeFeedback.classList.toggle("fm-mode-feedback--live", !isStep);
+}
+
+function flashTemporaryModeFeedback(message, ms = 1800) {
+  if (!els.fmModeFeedback) return;
+  if (fmFeedbackFlashTimer) window.clearTimeout(fmFeedbackFlashTimer);
+  els.fmModeFeedback.textContent = message;
+  fmFeedbackFlashTimer = window.setTimeout(() => {
+    fmFeedbackFlashTimer = null;
+    updateModeFeedback();
+  }, ms);
 }
 
 function buildHeader() {
@@ -278,18 +294,17 @@ function buildHeader() {
     const led = document.createElement("span");
     led.className = "step-led";
 
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "step-head-btn";
-    btn.textContent = String(i + 1);
+    const num = document.createElement("span");
+    num.className = "step-head-num";
+    num.textContent = String(i + 1);
 
-    btn.addEventListener("click", () => {
+    wrap.addEventListener("click", () => {
       state.cursorStep = i;
       render();
     });
 
     wrap.appendChild(led);
-    wrap.appendChild(btn);
+    wrap.appendChild(num);
     els.gridHeader.appendChild(wrap);
   }
 }
@@ -417,13 +432,13 @@ function buildPiano() {
 
 function render() {
   applyModeClass();
+  updateModeFeedback();
   updateGridScale();
   buildHeader();
   buildLabels();
   renderGrid();
   buildPiano();
   updateCursorInfo();
-  updateModeHint();
 }
 
 function getMidiOutput() {
@@ -622,7 +637,6 @@ async function initMidi() {
     };
 
     setStatus("MIDI klaar");
-    setDisplay("MIDI KLAAR");
   } catch (error) {
     setStatus("MIDI toestemming geweigerd");
     setDisplay("MIDI GEWEIGERD");
@@ -664,7 +678,26 @@ function moveCursorStep(delta) {
 }
 
 function moveCursorRow(delta) {
-  state.cursorRow = (state.cursorRow + delta + BASE_NOTE_ROWS.length) % BASE_NOTE_ROWS.length;
+  const rowCount = BASE_NOTE_ROWS.length;
+  if (delta === -1 && state.cursorRow === 0) {
+    if (state.octaveShift < 12) {
+      state.octaveShift = Number(state.octaveShift) + 12;
+      els.octaveShift.value = String(state.octaveShift);
+      render();
+      flashTemporaryModeFeedback("Octaaf omhoog — het menu Octaaf is bijgewerkt.");
+    }
+    return;
+  }
+  if (delta === 1 && state.cursorRow === rowCount - 1) {
+    if (state.octaveShift > -12) {
+      state.octaveShift = Number(state.octaveShift) - 12;
+      els.octaveShift.value = String(state.octaveShift);
+      render();
+      flashTemporaryModeFeedback("Octaaf omlaag — het menu Octaaf is bijgewerkt.");
+    }
+    return;
+  }
+  state.cursorRow = (state.cursorRow + delta + rowCount) % rowCount;
   render();
 }
 
@@ -693,12 +726,19 @@ function handleMappedKey(lower) {
   return true;
 }
 
+function syncSettingsToggleUi() {
+  const open = state.settingsOpen;
+  els.toggleSettingsBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  els.toggleSettingsBtn.setAttribute("aria-label", open ? "Instellingen verbergen" : "Instellingen tonen");
+  if (els.controlStack) {
+    els.controlStack.classList.toggle("control-stack--settings-hidden", !open);
+  }
+}
+
 function toggleSettingsPanel() {
   state.settingsOpen = !state.settingsOpen;
   els.settingsPanel.style.display = state.settingsOpen ? "block" : "none";
-  els.toggleSettingsBtn.textContent = state.settingsOpen
-    ? "▲ INSTELLINGEN OMHOOG"
-    : "▼ INSTELLINGEN OMLAAG";
+  syncSettingsToggleUi();
 }
 
 function bindEvents() {
@@ -834,6 +874,7 @@ function bindEvents() {
 function init() {
   populateChannels();
   bindEvents();
+  syncSettingsToggleUi();
   updateGridScale();
   render();
   initMidi();
